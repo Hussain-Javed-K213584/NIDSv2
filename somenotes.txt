@@ -1,0 +1,4 @@
+- dataset was created by myself (tools used were hping3, hydra)
+- if this works, add nmap and ping scanning as well later
+- after training model try to get 5-10 packets in a list and then send all those packets to the model
+	If the model returns with more than half true values based on the input, flag an alert
