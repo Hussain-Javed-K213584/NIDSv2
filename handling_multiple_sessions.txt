@@ -1,0 +1,77 @@
+When performing live packet capture with Scapy, especially in scenarios involving multiple sessions, you can adapt your approach to handle different sessions effectively. Here are some strategies:
+
+1. **Session Identification**:
+   - Define criteria for identifying sessions. Sessions can be based on source IP, destination IP, port numbers, or any other relevant attributes.
+   - Group packets belonging to the same session together.
+
+2. **Asynchronous Sniffing**:
+   - Use `AsyncSniffer` from Scapy to capture packets asynchronously.
+   - This allows you to capture packets in the background while continuing other tasks.
+   - Example:
+     ```python
+     from scapy.all import AsyncSniffer, send
+
+     # Start capturing packets asynchronously
+     sniffer = AsyncSniffer()
+     sniffer.start()
+
+     # Send some packets (e.g., ICMP)
+     send(IP(dst="www.google.com")/ICMP(), inter=1, count=30)
+
+     # Stop the sniffer and retrieve captured packets
+     results = sniffer.stop()
+     ```
+
+3. **Thread-Based Approach**:
+   - Create a separate Python thread that targets your sniffing function.
+   - This allows you to capture packets concurrently while performing other tasks.
+   - Example:
+     ```python
+     import threading
+
+     def sniff_packets():
+         # Your sniffing logic here
+         pass
+
+     # Create a thread for packet sniffing
+     thread = threading.Thread(target=sniff_packets)
+     thread.start()
+     ```
+
+4. **Session Management**:
+   - Maintain a data structure (e.g., dictionary) to store packets for each session.
+   - Update this structure as packets arrive.
+   - Handle each session independently based on your requirements.
+
+5. **Dynamic Filters**:
+   - Use Scapy's filter capabilities to selectively capture packets based on session criteria.
+   - Adjust the filter dynamically as sessions change.
+
+6. **Custom Callbacks**:
+   - Define custom callback functions to process packets as they arrive.
+   - React to packets based on session information.
+   - Example:
+     ```python
+     def packet_callback(packet):
+         # Your custom logic here
+         pass
+
+     # Start sniffing with the custom callback
+     sniff(iface="eno2", prn=packet_callback, store=False)
+     ```
+
+Remember that handling multiple sessions during live capture requires careful design and consideration of your specific use case. Adapt these strategies based on your requirements and the nature of the network traffic you're analyzing. 🌟
+
+Source: Conversation with Bing, 4/23/2024
+(1) Usage — Scapy 2.5.0 documentation - Read the Docs. https://scapy.readthedocs.io/en/latest/usage.html.
+(2) scapy - Run Python Code to capture live network traffic accessing all .... https://stackoverflow.com/questions/75280482/run-python-code-to-capture-live-network-traffic-accessing-all-users-rights.
+(3) scapy.sessions — Scapy 2.5.0 documentation - Read the Docs. https://scapy.readthedocs.io/en/latest/api/scapy.sessions.html.
+(4) Scapy packet sniffer triggering an action up on each sniffed packet. https://stackoverflow.com/questions/28292224/scapy-packet-sniffer-triggering-an-action-up-on-each-sniffed-packet.
+(5) python 3.x - Is there a way to capture packets in background and send .... https://stackoverflow.com/questions/67889814/is-there-a-way-to-capture-packets-in-background-and-send-packets-using-scapy.
+(6) linux - How to send multiple packets in scapy - Stack Overflow. https://stackoverflow.com/questions/34426872/how-to-send-multiple-packets-in-scapy.
+
+
+
+
+
+You can make a list of dictionaries where you can check if a packet's IP is not in dictionary then add it and record it's features that you normally would.
