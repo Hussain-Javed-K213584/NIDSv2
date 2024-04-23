@@ -2,3 +2,64 @@
 - if this works, add nmap and ping scanning as well later
 - after training model try to get 5-10 packets in a list and then send all those packets to the model
 	If the model returns with more than half true values based on the input, flag an alert
+
+
+Certainly! Sequence-based features are essential for capturing context and temporal dependencies in network traffic analysis. Let's explore some sequence-based features you can extract using Scapy:
+
+1. **Packet Order and Time Gap**:
+   - Calculate the time gap (inter-arrival time) between consecutive packets within a session.
+   - Use Scapy's timestamp information (`packet.time`) to compute the time difference.
+   - Example: Detect sudden bursts of traffic or unusually long gaps.
+
+2. **Packet Size Trends**:
+   - Analyze how packet sizes change within a session.
+   - Compute statistics such as mean, standard deviation, minimum, and maximum packet sizes.
+   - Identify patterns like increasing or decreasing packet sizes.
+
+3. **Protocol Distribution**:
+   - Count the occurrences of different protocols (e.g., TCP, UDP, ICMP) within a session.
+   - Use Scapy's protocol information (`packet[IP].proto`, `packet[UDP].dport`, etc.).
+
+4. **Port Distribution**:
+   - Track the distribution of source and destination ports within a session.
+   - Identify common or unusual port numbers.
+
+5. **Payload Content Analysis**:
+   - Extract payload content (e.g., HTTP requests, DNS queries) from packets.
+   - Analyze patterns, keywords, or anomalies in the payload.
+
+6. **Session Duration**:
+   - Calculate the duration of each session (time between the first and last packet).
+   - Longer sessions may indicate more complex interactions.
+
+7. **Packet Count and Byte Count**:
+   - Count the total number of packets and bytes within a session.
+   - Useful for understanding session intensity.
+
+8. **Entropy**:
+   - Compute entropy of packet sizes, port numbers, or payload content.
+   - High entropy indicates randomness or diversity.
+
+9. **Sliding Windows**:
+   - Create fixed-size windows of packets (e.g., 10 packets per window).
+   - Extract features from each window (e.g., mean packet size, protocol distribution).
+
+10. **Bidirectional Features**:
+    - Consider features that involve both the current packet and its corresponding response (if applicable).
+    - Example: Bidirectional packet count, bidirectional time gap.
+
+11. **Feature Engineering**:
+    - Create custom features based on domain knowledge.
+    - For example, calculate the ratio of incoming to outgoing packets.
+
+12. **Machine Learning Models for Sequence Data**:
+    - Use recurrent neural networks (RNNs), long short-term memory (LSTM), or temporal convolutional networks (TCNs) to model sequence-based features effectively.
+
+Remember that the choice of features depends on your specific use case and the type of DDoS attacks you want to detect. Experiment with different features and evaluate their impact on model performance. Scapy provides the necessary tools to extract and analyze these features from network packets! 🌟
+
+Source: Conversation with Bing, 4/23/2024
+(1) Network Packet Analysis with Scapy: A Beginner's Guide. https://codewithgolu.com/python/network-packet-analysis-with-scapy-a-beginner-s-guide/.
+(2) A Systematic Approach of Analysing Network Traffic Using Packet .... https://link.springer.com/chapter/10.1007/978-981-16-3728-5_60.
+(3) Network Activity and Packet Analysis with Python | Pluralsight. https://www.pluralsight.com/courses/python-network-activity-packet-analysis.
+(4) This packet analyzer is a Python script that uses Scapy to monitor .... https://github.com/cbrwx/packet_analyzer.
+(5) Network traffic analysis with Python, Scapy (and some Machine ... - Cylab. https://cylab.be/blog/245/network-traffic-analysis-with-python-scapy-and-some-machine-learning.
