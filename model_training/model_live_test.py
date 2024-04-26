@@ -15,9 +15,9 @@ from joblib import load
 from platform import system
 
 NETWORK_INTERFACE = ''
-if system == 'Linux':
+if system() == 'Linux':
     NETWORK_INTERFACE = 'ens33'
-elif system == 'Windows':
+elif system() == 'Windows':
     NETWORK_INTERFACE = 'Realtek Gaming GbE Family Controller'
     
 class PacketAnalysis:
