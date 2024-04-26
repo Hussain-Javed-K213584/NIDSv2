@@ -90,6 +90,8 @@ class PacketAnalysis:
                 current_packet_info[self.columns[10]] = self.label
                 self.packet_info.append(current_packet_info)
 
+                """TODO: Update this code to capture ICMP info as well"""
+
 
     def start_sniffer(self):
         self.label = input("label: ")
