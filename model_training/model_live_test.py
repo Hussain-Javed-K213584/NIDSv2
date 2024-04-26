@@ -26,22 +26,19 @@ class PacketAnalysis:
         self.file_name = ''
         self.sessions = [] # List of dictionaries to hold packets
         self.local_pc_ip = get_if_addr(NETWORK_INTERFACE)
-        self.dt_model = load('dt_classifier.pkl')
+        self.dt_model = load('model_training/dt_classifier.pkl')
         signal.signal(signal.SIGINT, self._save_data_csv)
 
     def _save_data_csv(self, sig, frame):
         # Once ctrl+c pressed, save data to csv
-        df = pd.DataFrame(self.packet_info)
-        df.columns = self.columns
-        df.to_csv(self.file_name,index=False)
-        print('CTRL+C was used.')
+        print('Program Exited!')
         sys.exit(0)
 
     def _flags_to_encode(self, tcp_flags: str) -> int:
-        if tcp_flags == 0:
-            return 0
+        if type(tcp_flags) != str:
+            tcp_flags = str(tcp_flags)
         flag_mapping = {
-            'F': '0',
+            'F': '8',
             'S': '1',
             'R': '2',
             'P': '3',
@@ -49,13 +46,18 @@ class PacketAnalysis:
             'U': '5',
             'E': '6',
             'C': '7',
-            '0': '0'
+            '0': '0',
+            '9': '9'
         }
-        list_of_flags = list(tcp_flags)
+        list_of_flags = list()
+        try:
+            list_of_flags = list(tcp_flags)
+        except:
+            print(tcp_flags)
         encoded_flag = ''
         for flag in list_of_flags:
             encoded_flag += flag_mapping[flag]
-    
+        
         return int(encoded_flag)
     
     def _packet_analysis(self, packet):
@@ -120,7 +122,9 @@ class PacketAnalysis:
                 )
                 df = pd.DataFrame([current_packet_info])
                 prediction = self.dt_model.predict(df)
-                print(prediction)
+                if prediction != ['benign']:
+                    print(prediction)
+                    
             except UnboundLocalError:
                 print('local var error')
 
