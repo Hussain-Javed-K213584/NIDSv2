@@ -1,4 +1,3 @@
-dport,sport,protocol,tcp_flags,time bw prev packet,pkt_len,ttl,payload size,label
 22,22,tcp,PA,1713091946.3204637,76,64,248,ssh-bruteforce
 22,22,tcp,PA,0.010541677474975586,76,64,248,ssh-bruteforce
 22,22,tcp,PA,0.010558843612670898,76,64,248,ssh-bruteforce

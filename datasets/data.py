@@ -12,7 +12,7 @@ import sys
 from pprint import pprint
 import signal
 
-NETWORK_INTERFACE='Realtek Gaming GbE Family Controller'
+NETWORK_INTERFACE='ens33'
 
 class PacketAnalysis:
     def __init__(self):
