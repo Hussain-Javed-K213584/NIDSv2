@@ -31,7 +31,7 @@ class PacketAnalysis:
         # Once ctrl+c pressed, save data to csv
         df = pd.DataFrame(self.packet_info)
         df.columns = self.columns
-        df.to_csv(self.file_name,index=False)
+        df.to_csv(self.file_name + '.csv',index=False)
         print('CTRL+C was used.')
         sys.exit(0)
     
