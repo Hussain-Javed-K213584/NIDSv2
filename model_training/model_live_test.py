@@ -143,9 +143,6 @@ class PacketAnalysis:
         print('sniffing started')
         sniff(iface=NETWORK_INTERFACE, 
                        prn=self._packet_analysis)
-        df = pd.DataFrame(self.packet_info)
-        df.columns = self.columns
-        df.to_csv(self.file_name + '.csv', index=False)
 
 
 sniffer = PacketAnalysis()

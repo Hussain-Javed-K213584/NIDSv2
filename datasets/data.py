@@ -38,6 +38,7 @@ class PacketAnalysis:
     def _packet_analysis(self, packet):
         if IP in packet:
             if TCP in packet:
+                print(bytes(packet[TCP].payload).decode('UTF-8','replace'))
                 current_packet_time = packet[TCP].time
                 current_packet_info = {}
                 # current_packet_info['src_ip'] = packet[IP].src
@@ -89,6 +90,7 @@ class PacketAnalysis:
                 current_packet_info[self.columns[9]] = sys.getsizeof(packet[UDP].payload)
                 current_packet_info[self.columns[10]] = self.label
                 self.packet_info.append(current_packet_info)
+                pprint(current_packet_info)
 
                 """TODO: Update this code to capture ICMP info as well"""
             
