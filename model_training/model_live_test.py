@@ -12,9 +12,14 @@ import sys
 from pprint import pprint
 import signal
 from joblib import load
+from platform import system
 
-NETWORK_INTERFACE='ens33'
-
+NETWORK_INTERFACE = ''
+if system == 'Linux':
+    NETWORK_INTERFACE = 'ens33'
+elif system == 'Windows':
+    NETWORK_INTERFACE = 'Realtek Gaming GbE Family Controller'
+    
 class PacketAnalysis:
     def __init__(self):
         self.columns = [
