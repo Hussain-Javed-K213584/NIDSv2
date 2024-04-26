@@ -91,7 +91,9 @@ class PacketAnalysis:
                 self.packet_info.append(current_packet_info)
 
                 """TODO: Update this code to capture ICMP info as well"""
-
+            
+            elif ICMP in packet:
+                print('ICMP PACKET RECEIVED!')
 
     def start_sniffer(self):
         self.label = input("label: ")
