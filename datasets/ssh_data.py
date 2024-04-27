@@ -12,7 +12,8 @@ import sys
 from pprint import pprint
 import signal
 from platform import system
-from datetime import datetime
+import numpy as np
+from time import time
 
 NETWORK_INTERFACE = ''
 if system() == 'Linux':
@@ -23,14 +24,20 @@ elif system() == 'Windows':
 class PacketAnalysis:
     def __init__(self):
         self.columns = [
-           'src_ip','dst_ip', 'dport', 'sport','time' ,'protocol', 'flags', 'time bw prev packet','spkts','dpkts' ,'pkt_len','ttl', 'payload size', 'label'
+           'src_ip','dst_ip', 'dport', 'sport','time' ,'protocol', 'flags', 'time bw prev packet','spkts','dpkts' 
+           ,'pkt_len', 'avgpkt','medpkt','stdpkt','avgBytes','medBytes','stdBytes','avgPktSz','medPktSz','stdPktSz', 'label'
         ]
+        # 11-19 new data
         self.packet_info = []
         self.prev_packet_time = 0
         self.label = ''
         self.file_name = ''
         self.sessions = [] # List of dictionaries to hold packets
         self.local_pc_ip = get_if_addr(NETWORK_INTERFACE)
+        self.tcp_pkt_count = 0
+        self.udp_pkt_count = 0
+        self.final_df = pd.DataFrame()
+        self.start_time = time()
         signal.signal(signal.SIGINT, self._save_data_csv)
 
     def _save_data_csv(self, sig, frame):
@@ -44,10 +51,9 @@ class PacketAnalysis:
     def _packet_analysis(self, packet):
         if IP in packet:
             if TCP in packet:
+                self.tcp_pkt_count += 1
                 current_packet_time = packet[TCP].time
                 current_packet_info = {}
-                # current_packet_info['src_ip'] = packet[IP].src
-                # current_packet_info['dst_ip'] = packet[IP].dst
                 current_packet_info[self.columns[0]] = packet[IP].src
                 current_packet_info[self.columns[1]] = packet[IP].dst
                 current_packet_info[self.columns[2]] = packet[TCP].dport
@@ -66,24 +72,45 @@ class PacketAnalysis:
                     current_packet_info[self.columns[8]] = 0
                     current_packet_info[self.columns[9]] = len(bytes(packet[TCP]))
                 current_packet_info[self.columns[10]] = len(packet[TCP].payload)
-                current_packet_info[self.columns[11]] = packet[IP].ttl
-                current_packet_info[self.columns[12]] = sys.getsizeof(packet[TCP].payload)
-                current_packet_info[self.columns[13]] = self.label
-                # Perform aggregation here
-                if len(self.packet_info) == 10:
-                    grouped_data = pd.DataFrame(self.packet_info)
-                    grouped_data['time'] = pd.to_datetime(grouped_data['time'], unit='s')
-                    grouped_data = grouped_data.groupby(['src_ip', 'dst_ip','dport'])
-                    aggregated_data = []
-                    for group, data in grouped_data:
-                        data = data.drop(['src_ip', 'dst_ip', 'sport', 'dport'], axis=1)
-                        resampled_data = data.resample('5s', on='time').mean()
-                        resampled_data = pd.concat([data[['src_ip', 'dst_ip', 'sport', 'dport']], resampled_data], axis=1)
-                        aggregated_data.append(resampled_data)
-                    aggregated_data = pd.concat(aggregated_data)
-                    print(aggregated_data.head())
-                    aggregated_data.to_csv('agg.csv', index=False)
+                current_packet_info[self.columns[11]] = self.tcp_pkt_count
+                current_packet_info[self.columns[12]] = self.tcp_pkt_count
+                current_packet_info[self.columns[13]] = self.tcp_pkt_count
+                current_packet_info[self.columns[14]] = sys.getsizeof(packet[TCP].payload)
+                current_packet_info[self.columns[15]] = sys.getsizeof(packet[TCP].payload)
+                current_packet_info[self.columns[16]] = sys.getsizeof(packet[TCP].payload)
+                current_packet_info[self.columns[17]] = sys.getsizeof(packet[TCP]) / self.tcp_pkt_count
+                current_packet_info[self.columns[18]] = sys.getsizeof(packet[TCP]) / self.tcp_pkt_count
+                current_packet_info[self.columns[19]] = sys.getsizeof(packet[TCP]) / self.tcp_pkt_count
+                current_packet_info[self.columns[20]] = self.label  
                 self.packet_info.append(current_packet_info)
+                if time() - self.start_time >= 30:
+                    # After every 30 seconds create an aggregated dataframe
+                    print('30 seconds passed')
+                    self.start_time = time()
+                    temp_df = pd.DataFrame(self.packet_info).drop(['src_ip', 'dst_ip', 'flags'], axis=1)
+                    print(temp_df.head())
+                    # temp_df = temp_df.agg({
+                    #     self.columns[11]:'mean',
+                    #     self.columns[12]:'median',
+                    #     self.columns[13]: 'std',
+                    #     self.columns[14]:'mean',
+                    #     self.columns[15]:'median',
+                    #     self.columns[16]: 'std',
+                    #     self.columns[17]:'mean',
+                    #     self.columns[18]:'median',
+                    #     self.columns[19]: 'std',
+                    # })
+                    temp_df[self.columns[11]] = temp_df[self.columns[11]].mean()
+                    temp_df[self.columns[12]] = temp_df[self.columns[12]].median()
+                    temp_df[self.columns[13]] = temp_df[self.columns[13]].std()
+                    temp_df[self.columns[14]] = temp_df[self.columns[11]].mean()
+                    temp_df[self.columns[15]] = temp_df[self.columns[12]].median()
+                    temp_df[self.columns[16]] = temp_df[self.columns[13]].std()
+                    temp_df[self.columns[17]] = temp_df[self.columns[11]].mean()
+                    temp_df[self.columns[18]] = temp_df[self.columns[12]].median()
+                    temp_df[self.columns[19]] = temp_df[self.columns[13]].std()
+                    print(f"Total packets sniffed: {len(self.packet_info)}")
+                    self.final_df = pd.concat([self.final_df, temp_df])
 
             elif UDP in packet:
                 current_packet_time = packet[UDP].time
@@ -106,13 +133,44 @@ class PacketAnalysis:
                     current_packet_info[self.columns[8]] = 0
                     current_packet_info[self.columns[9]] = len(bytes(packet[UDP]))
                 current_packet_info[self.columns[10]] = len(packet[UDP].payload)
-                current_packet_info[self.columns[11]] = 0
-                current_packet_info[self.columns[12]] = sys.getsizeof(packet[UDP].payload)
-                current_packet_info[self.columns[13]] = self.label
+                current_packet_info[self.columns[11]] = self.tcp_pkt_count
+                current_packet_info[self.columns[12]] = self.tcp_pkt_count
+                current_packet_info[self.columns[13]] = self.tcp_pkt_count
+                current_packet_info[self.columns[14]] = sys.getsizeof(packet[UDP].payload)
+                current_packet_info[self.columns[15]] = sys.getsizeof(packet[UDP].payload)
+                current_packet_info[self.columns[16]] = sys.getsizeof(packet[UDP].payload)
+                current_packet_info[self.columns[17]] = sys.getsizeof(packet[UDP]) / self.tcp_pkt_count
+                current_packet_info[self.columns[18]] = sys.getsizeof(packet[UDP]) / self.tcp_pkt_count
+                current_packet_info[self.columns[19]] = sys.getsizeof(packet[UDP]) /self.tcp_pkt_count
+                current_packet_info[self.columns[20]] = self.label
                 self.packet_info.append(current_packet_info)
-                pprint(current_packet_info)
-
-                """TODO: Update this code to capture ICMP info as well"""
+                if time() - self.start_time >= 30:
+                    # After every 30 seconds create an aggregated dataframe
+                    print('30 seconds passed')
+                    self.start_time = time()
+                    temp_df = pd.DataFrame(self.packet_info).drop(['src_ip', 'dst_ip', 'flags'], axis=1)
+                    print(temp_df.head())
+                    # temp_df = temp_df.agg({
+                    #     self.columns[11]:'mean',
+                    #     self.columns[12]:'median',
+                    #     self.columns[13]: 'std',
+                    #     self.columns[14]:'mean',
+                    #     self.columns[15]:'median',
+                    #     self.columns[16]: 'std',
+                    #     self.columns[17]:'mean',
+                    #     self.columns[18]:'median',
+                    #     self.columns[19]: 'std',
+                    # })
+                    temp_df[self.columns[11]] = temp_df[self.columns[11]].mean()
+                    temp_df[self.columns[12]] = temp_df[self.columns[12]].median()
+                    temp_df[self.columns[13]] = temp_df[self.columns[13]].std()
+                    temp_df[self.columns[14]] = temp_df[self.columns[11]].mean()
+                    temp_df[self.columns[15]] = temp_df[self.columns[12]].median()
+                    temp_df[self.columns[16]] = temp_df[self.columns[13]].std()
+                    temp_df[self.columns[17]] = temp_df[self.columns[11]].mean()
+                    temp_df[self.columns[18]] = temp_df[self.columns[12]].median()
+                    temp_df[self.columns[19]] = temp_df[self.columns[13]].std()
+                    print(temp_df.head())
             
             elif ICMP in packet:
                 print('ICMP PACKET RECEIVED!')
@@ -125,8 +183,7 @@ class PacketAnalysis:
         print('sniffing started')
         sniff(iface=NETWORK_INTERFACE, 
                        prn=self._packet_analysis, filter=filter, count=int(count))
-        df = pd.DataFrame(self.packet_info)
-        df.columns = self.columns
+        df = self.final_df
         df.to_csv(self.file_name + '.csv', index=False)
 
 
