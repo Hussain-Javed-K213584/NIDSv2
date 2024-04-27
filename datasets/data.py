@@ -11,8 +11,14 @@ import pandas as pd
 import sys
 from pprint import pprint
 import signal
+from platform import system
+import ssh
 
-NETWORK_INTERFACE='ens33'
+NETWORK_INTERFACE = ''
+if system() == 'Linux':
+    NETWORK_INTERFACE = 'ens33'
+elif system() == 'Windows':
+    NETWORK_INTERFACE = 'Realtek Gaming GbE Family Controller'
 
 class PacketAnalysis:
     def __init__(self):
@@ -25,6 +31,7 @@ class PacketAnalysis:
         self.file_name = ''
         self.sessions = [] # List of dictionaries to hold packets
         self.local_pc_ip = get_if_addr(NETWORK_INTERFACE)
+        self.ssh_object = ssh.SSH()
         signal.signal(signal.SIGINT, self._save_data_csv)
 
     def _save_data_csv(self, sig, frame):
@@ -38,7 +45,7 @@ class PacketAnalysis:
     def _packet_analysis(self, packet):
         if IP in packet:
             if TCP in packet:
-                print(bytes(packet[TCP].payload).decode('UTF-8','replace'))
+                something = self.ssh_object.guess_payload_class(packet[TCP].payload)
                 current_packet_time = packet[TCP].time
                 current_packet_info = {}
                 # current_packet_info['src_ip'] = packet[IP].src
