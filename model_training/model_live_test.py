@@ -31,7 +31,7 @@ class PacketAnalysis:
         self.file_name = ''
         self.sessions = [] # List of dictionaries to hold packets
         self.local_pc_ip = get_if_addr(NETWORK_INTERFACE)
-        self.dt_model = load('model_training/dt_classifier.pkl')
+        self.dt_model = load('model_training/ssh_rf.pkl')
         signal.signal(signal.SIGINT, self._save_data_csv)
 
     def _save_data_csv(self, sig, frame):
@@ -87,7 +87,7 @@ class PacketAnalysis:
                     current_packet_info[self.columns[5]] = 0
                     current_packet_info[self.columns[6]] = len(bytes(packet[TCP]))
                 current_packet_info[self.columns[7]] = len(packet[TCP].payload)
-                current_packet_info[self.columns[8]] = packet[IP].ttl
+                # current_packet_info[self.columns[8]] = packet[IP].ttl
                 current_packet_info[self.columns[9]] = sys.getsizeof(packet[TCP].payload)
                 # current_packet_info[self.columns[10]] = self.label
                 self.packet_info.append(current_packet_info)
@@ -115,7 +115,7 @@ class PacketAnalysis:
                     current_packet_info[self.columns[5]] = 0
                     current_packet_info[self.columns[6]] = len(bytes(packet[UDP]))
                 current_packet_info[self.columns[7]] = len(packet[UDP].payload)
-                current_packet_info[self.columns[8]] = 0
+                # current_packet_info[self.columns[8]] = 0
                 current_packet_info[self.columns[9]] = sys.getsizeof(packet[UDP].payload)
                 # current_packet_info[self.columns[10]] = self.label
                 self.packet_info.append(current_packet_info)
