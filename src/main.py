@@ -9,46 +9,57 @@ sniffer_stop = False
 textbox = None
 sniffer_thread = None
 
-def _scapy_callback(pkt):
-     global textbox
-     print(pkt.summary())
+class NIDS:
+    def __init__(self):
+          path = os.path.abspath('../model_training/dt_classifier.pkl')
+          self.dt_model = load(path)
+          self.columns = [
+           'dport', 'sport','protocol', 'flags', 'time bw prev packet','spkts','dpkts' ,'pkt_len','ttl', 'payload size'
+          ]
+          self.packet_info = []
+          self.prev_packet_time = 0
+          self.label = ''
+          self.file_name = ''
+          self.local_pc_ip = get_if_addr('Realtek Gaming GbE Family Controller')
 
-def stop_sniffing(pkt):
-     global sniffer_stop
-     return sniffer_stop
+    def _stop_sniffing(self,pkt):
+        global sniffer_stop
+        return sniffer_stop
 
-def _scapy_sniffer():
-     global sniffer_stop
-     sniff(filter='tcp', prn=_scapy_callback,stop_filter=stop_sniffing)
+    def _starter(self,start_button:Button,stop_button:Button):
+        """
+            Button command which disables the `start button`
+            and enables the `stop button`. It also starts
+            the live sniffing process by started another python process.
+        """
+        global sniffer_stop
+        global sniffer_thread
+        start_button.config(state=DISABLED)
+        if (sniffer_thread is None) or (not sniffer_thread.is_alive()):
+            sniffer_stop = False
+            sniffer_thread = threading.Thread(target=self._scapy_sniffer)
+            sniffer_thread.daemon = True
+            sniffer_thread.start()
+        stop_button.config(state=ACTIVE)
 
-def starter(start_button:Button,stop_button:Button):
-     """
-        Button command which disables the `start button`
-        and enables the `stop button`. It also starts
-        the live sniffing process by started another python process.
-     """
-     global sniffer_stop
-     global sniffer_thread
-     start_button.config(state=DISABLED)
-     if (sniffer_thread is None) or (not sniffer_thread.is_alive()):
-          sniffer_stop = False
-          sniffer_thread = threading.Thread(target=_scapy_sniffer)
-          sniffer_thread.daemon = True
-          sniffer_thread.start()
-     stop_button.config(state=ACTIVE)
+    def _stopper(self,start_button:Button, stop_button:Button):
+        """
+            Disables and enables the `stop button` and `start button`
+            respectively and kills the live sniffing process.
+        """
+        global sniffer_stop
+        stop_button.config(state=DISABLED)
+        sniffer_stop = True
+        start_button.config(state=ACTIVE)
 
-def stopper(start_button:Button, stop_button:Button):
-     """
-        Disables and enables the `stop button` and `start button`
-        respectively and kills the live sniffing process.
-     """
-     global sniffer_stop
-     stop_button.config(state=DISABLED)
-     sniffer_stop = True
-     start_button.config(state=ACTIVE)
-
-def gui_init():
-        # Initialize the GUI
+    def _scapy_sniffer(self):
+        global sniffer_stop
+        sniff(iface='Realtek Gaming GbE Family Controller',prn=self._feature_extractor,stop_filter=self._stop_sniffing)
+    
+    def gui_init(self):
+        """
+            The function that start the GUI. Should be called in the end.
+        """
         global textbox
         window = Tk()
         window.geometry('800x600')
@@ -84,27 +95,15 @@ def gui_init():
                               text='Stop NIDS',
                               font=('Arial',10),
                               state=DISABLED)
-        start_button.config(command=lambda: starter(start_button,
+        start_button.config(command=lambda: self._starter(start_button,
                                                     stop_button))
-        stop_button.config(command=lambda: stopper(start_button,
+        stop_button.config(command=lambda: self._stopper(start_button,
                                                    stop_button))
         start_button.grid()
         stop_button.grid()
         window.mainloop()
 
-class NIDS:
-     def __init__(self):
-          path = os.path.abspath('../model_training/dt_classifier.pkl')
-          self.model = load(path)
-          self.columns = [
-           'dport', 'sport','protocol', 'flags', 'time bw prev packet','spkts','dpkts' ,'pkt_len','ttl', 'payload size'
-          ]
-          self.packet_info = []
-          self.prev_packet_time = 0
-          self.label = ''
-          self.file_name = ''
-
-     def _flags_to_encode(self, tcp_flags: str) -> int:
+    def _flags_to_encode(self, tcp_flags: str) -> int:
         """
           Performs one-hot encoding on the tcp flags
         """
@@ -133,11 +132,13 @@ class NIDS:
         
         return int(encoded_flag)
 
-     def _feature_extractor(self,packet):
+    def _feature_extractor(self,packet):
           """
                Callback function passed to `prn` argument of scapy's
                sniff function. This function extracts the relevent features for our model.
           """
+          global textbox
+
           if IP in packet:
             if TCP in packet:
                 current_packet_time = packet[TCP].time
@@ -196,9 +197,13 @@ class NIDS:
                 prediction = self.dt_model.predict(df)
                 if prediction != ['benign']:
                     print(prediction)
+                    textbox.config(state=NORMAL)
+                    textbox.insert(END,prediction[0]+"\n")
+                    textbox.config(state=DISABLED)
                     
             except UnboundLocalError:
                 print('local var error')
 
 if __name__ == '__main__':
     nids = NIDS()
+    nids.gui_init()
