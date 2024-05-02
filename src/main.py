@@ -1,4 +1,5 @@
 from tkinter import *
+import tkinter.scrolledtext as scrolledtext
 from scapy.all import *
 from joblib import load
 import threading
@@ -6,6 +7,7 @@ import os
 import pandas as pd
 import configparser
 import yara
+import logging
 
 sniffer_stop = False
 textbox = None
@@ -31,11 +33,12 @@ class NIDS:
           self.config_parser = configparser.ConfigParser()
           self.config_parser.read(rule_file_path)
           self.rule_dictionary = []
+          logging.basicConfig(filename='alerts.log', filemode='a',format='%(asctime)s - %(message)s', datefmt='%d-%b-%y %H:%M:%S')
 
 
     # TODO: Implementing yara rules for NIDS and match packet payloads against the yara rules
     def yara_rules_match(self,packet_payload):
-        print(self.yara_files)
+        # print(self.yara_files)
         return
 
     # TODO: Implement NIDS rules. Use a config file for that.
@@ -94,7 +97,7 @@ class NIDS:
 
     def _scapy_sniffer(self):
         global sniffer_stop
-        sniff(iface='Realtek RTL8852BE WiFi 6 802.11ax PCIe Adapter',prn=self._feature_extractor,stop_filter=self._stop_sniffing)
+        sniff(iface='Realtek Gaming GbE Family Controller',prn=self._feature_extractor,stop_filter=self._stop_sniffing)
     
     def gui_init(self):
         """
@@ -120,7 +123,14 @@ class NIDS:
         textbox_label = Label(left_frame,text='Sniffer Logs:',
                               font=('Arial',8))
         textbox_label.grid(row=1,column=0)
-        textbox = Text(left_frame)
+        # textbox = Text(left_frame)
+        # text_scroll = Scrollbar(left_frame)
+        # text_scroll.config(command=textbox.yview)
+        # textbox.config(state=DISABLED,yscrollcommand=text_scroll.set)
+        # textbox.grid(row=2,column=0)
+        # text_scroll.grid(row=2,column=1)
+        textbox = scrolledtext.ScrolledText(left_frame,undo=True)
+        textbox['font'] = ('consolas',12)
         textbox.config(state=DISABLED)
         textbox.grid(row=2,column=0)
         right_frame = Frame(window,width=100,height=200)
@@ -147,6 +157,8 @@ class NIDS:
         """
           Performs one-hot encoding on the tcp flags
         """
+        if tcp_flags == '':
+            return -1
         if type(tcp_flags) != str:
             tcp_flags = str(tcp_flags)
         flag_mapping = {
@@ -255,10 +267,24 @@ class NIDS:
                 df = pd.DataFrame([current_packet_info])
                 prediction = self.dt_model.predict(df)
                 if prediction != ['benign']:
-                    print(prediction)
-                    textbox.config(state=NORMAL)
-                    textbox.insert(END,prediction[0]+"\n")
-                    textbox.config(state=DISABLED)
+                    match prediction[0]:
+                        case 'nmap':
+                            textbox.config(state=NORMAL)
+                            textbox.insert(END,f'Possible {prediction[0]} scan from {packet[IP].src}'+"\n")
+                            textbox.config(state=DISABLED)
+                            logging.warning(f'Possible {prediction[0]} scan from {packet[IP].src}')
+                        case 'ddos':
+                            if protocol == 'udp':
+                                textbox.config(state=NORMAL)
+                                textbox.insert(END,f'Possible {prediction[0]} attack from {packet[IP].src} on port {packet[UDP].dport}'+"\n")
+                                textbox.config(state=DISABLED)
+                                logging.warning(f'Possible {prediction[0]} attack from {packet[IP].src} on port {packet[UDP].dport}')
+                            elif protocol == 'tcp':
+                                textbox.config(state=NORMAL)
+                                textbox.insert(END,f'Possible {prediction[0]} attack from {packet[IP].src} on port {packet[TCP].dport}'+"\n")
+                                textbox.config(state=DISABLED)
+                                logging.warning(f'Possible {prediction[0]} attack from {packet[IP].src} on port {packet[TCP].dport}')
+
                     
             except UnboundLocalError:
                 print('local var error')
