@@ -5,6 +5,7 @@ import threading
 import os
 import pandas as pd
 import configparser
+import yara
 
 sniffer_stop = False
 textbox = None
@@ -15,6 +16,9 @@ class NIDS:
           src_path = os.path.dirname(os.path.abspath(__file__))
           file_path = os.path.join(src_path,'../model_training/dt_classifier.pkl')
           rule_file_path = os.path.join(src_path,'rules.conf')
+          yara_dir = os.path.join(src_path, 'yara-rules')
+          # store all yara files inside a list
+          self.yara_files = [f for f in os.listdir(yara_dir) if os.path.isfile(os.path.join(yara_dir,f))]
           self.dt_model = load(file_path)
           self.columns = [
            'dport', 'sport','protocol', 'flags', 'time bw prev packet','spkts','dpkts' ,'pkt_len','ttl', 'payload size'
@@ -27,6 +31,13 @@ class NIDS:
           self.config_parser = configparser.ConfigParser()
           self.config_parser.read(rule_file_path)
           self.rule_dictionary = []
+
+
+    # TODO: Implementing yara rules for NIDS and match packet payloads against the yara rules
+    def yara_rules_match(self,packet_payload):
+        print(self.yara_files)
+        return
+
     # TODO: Implement NIDS rules. Use a config file for that.
     def rule_parser(self):
         """
@@ -225,6 +236,14 @@ class NIDS:
                         protocol = 'tcp'
                     case 17:
                         protocol = 'udp'
+                
+                # If packet is UDP or TCP then send it's payload to yara for matching
+                if protocol == 'udp' or protocol == 'tcp':
+                    match protocol:
+                        case 'tcp':
+                            self.yara_rules_match(packet_payload=packet[TCP].payload)
+                        case 'udp':
+                            self.yara_rules_match(packet_payload=packet[UDP].payload)
                 for dict in self.rule_dictionary:
                     if packet[IP].src == dict['ip'] and \
                         packet[protocol] and dict['state'] == 'allow':
