@@ -23,7 +23,7 @@ elif system() == 'Windows':
 class PacketAnalysis:
     def __init__(self):
         self.columns = [
-           'src_ip','dst_ip', 'dport', 'sport','time' ,'protocol', 'flags', 'time bw prev packet','spkts','dpkts' ,'pkt_len','ttl', 'payload size', 'label'
+           'dport', 'sport','protocol', 'flags', 'time bw prev packet','spkts','dpkts' ,'pkt_len','ttl', 'payload size', 'label'
         ]
         self.packet_info = []
         self.prev_packet_time = 0

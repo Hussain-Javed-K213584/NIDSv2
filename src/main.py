@@ -4,6 +4,7 @@ from joblib import load
 import threading
 import os
 import pandas as pd
+import configparser
 
 sniffer_stop = False
 textbox = None
@@ -11,8 +12,10 @@ sniffer_thread = None
 
 class NIDS:
     def __init__(self):
-          path = os.path.abspath('../model_training/dt_classifier.pkl')
-          self.dt_model = load(path)
+          src_path = os.path.dirname(os.path.abspath(__file__))
+          file_path = os.path.join(src_path,'../model_training/dt_classifier.pkl')
+          rule_file_path = os.path.join(src_path,'rules.conf')
+          self.dt_model = load(file_path)
           self.columns = [
            'dport', 'sport','protocol', 'flags', 'time bw prev packet','spkts','dpkts' ,'pkt_len','ttl', 'payload size'
           ]
@@ -21,6 +24,31 @@ class NIDS:
           self.label = ''
           self.file_name = ''
           self.local_pc_ip = get_if_addr('Realtek Gaming GbE Family Controller')
+          self.config_parser = configparser.ConfigParser()
+          self.config_parser.read(rule_file_path)
+          self.rule_dictionary = []
+    # TODO: Implement NIDS rules. Use a config file for that.
+    def rule_parser(self):
+        """
+            Parses a config file on allow and deny requests
+        """
+        ip_list = self.config_parser['RULE']['ip'].split(',')
+        port_list = self.config_parser['RULE']['port'].split(',')
+        proto_list = self.config_parser['RULE']['protocol'].split(',')
+        state_list = self.config_parser['RULE']['state'].split(',')
+        if not len(state_list) == len(ip_list) == len(port_list) == len(proto_list):
+            print("Invalid rule")
+            exit()
+        # Converting the rule to a list of dictionaries
+        
+        for i in range(len(ip_list)):
+            temp_dict = {
+                'ip':ip_list[i],
+                'port':port_list[i],
+                'protocol':proto_list[i]
+            }
+            self.rule_dictionary.append(temp_dict)
+
 
     def _stop_sniffing(self,pkt):
         global sniffer_stop
@@ -34,6 +62,7 @@ class NIDS:
         """
         global sniffer_stop
         global sniffer_thread
+        self.rule_parser()
         start_button.config(state=DISABLED)
         if (sniffer_thread is None) or (not sniffer_thread.is_alive()):
             sniffer_stop = False
@@ -54,7 +83,7 @@ class NIDS:
 
     def _scapy_sniffer(self):
         global sniffer_stop
-        sniff(iface='Realtek Gaming GbE Family Controller',prn=self._feature_extractor,stop_filter=self._stop_sniffing)
+        sniff(iface='Realtek RTL8852BE WiFi 6 802.11ax PCIe Adapter',prn=self._feature_extractor,stop_filter=self._stop_sniffing)
     
     def gui_init(self):
         """
@@ -190,6 +219,17 @@ class NIDS:
 
             try:
                 # Predict the packet
+                protocol = ''
+                match current_packet_info['protocol']:
+                    case 6:
+                        protocol = 'tcp'
+                    case 17:
+                        protocol = 'udp'
+                for dict in self.rule_dictionary:
+                    if packet[IP].src == dict['ip'] and \
+                        packet[protocol] and dict['state'] == 'allow':
+                        continue
+                    
                 current_packet_info['flags'] = self._flags_to_encode(
                     tcp_flags=current_packet_info['flags']
                 )
