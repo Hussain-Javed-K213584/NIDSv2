@@ -9,6 +9,7 @@ import configparser
 import yara
 import logging
 from itertools import zip_longest
+from pprint import pprint
 
 sniffer_stop = False
 textbox = None
@@ -40,7 +41,7 @@ class NIDS:
           self.prev_packet_time = 0
           self.label = ''
           self.file_name = ''
-          self.local_pc_ip = get_if_addr('Realtek Gaming GbE Family Controller')
+          self.local_pc_ip = get_if_addr('ens33')
           self.config_parser = configparser.ConfigParser()
           self.config_parser.read(rule_file_path)
           self.rule_dictionary = []
@@ -51,8 +52,8 @@ class NIDS:
     def yara_rules_match(self,packet_payload):
         
         rules = yara.compile(filepaths=self.yara_files)
-        print(packet_payload)
-        matcher = rules.match(packet_payload)
+        matcher = rules.match(data=packet_payload.decode())
+        pprint(matcher)
         return
 
     # TODO: Implement NIDS rules. Use a config file for that.
@@ -111,7 +112,7 @@ class NIDS:
 
     def _scapy_sniffer(self):
         global sniffer_stop
-        sniff(iface='Realtek Gaming GbE Family Controller',prn=self._feature_extractor,stop_filter=self._stop_sniffing)
+        sniff(iface='ens33',prn=self._feature_extractor,stop_filter=self._stop_sniffing)
     
     def gui_init(self):
         """
@@ -119,7 +120,7 @@ class NIDS:
         """
         global textbox
         window = Tk()
-        window.geometry('800x600')
+        window.geometry('1024x768')
         window.title("NIDSv2")
         header_frame = Frame(window,width=200,height=400,
                              highlightbackground='black',
@@ -264,8 +265,9 @@ class NIDS:
                         protocol = 'udp'
                 
                 # If packet has HTTP layer then send it's payload to yara for matching
-                if packet.haslayer('Raw') and packet.haslayer('HTTP'):
-                    http_payload = packet['Raw'].payload
+                if protocol == 'tcp' and packet[TCP].dport == 80:
+                    # TODO: Hussain, do yara matching in another thread please
+                    http_payload = bytes(packet[TCP].payload)
                     self.yara_rules_match(http_payload)
                 for dict in self.rule_dictionary:
                     if packet[IP].src == dict['ip'] and \
@@ -277,7 +279,9 @@ class NIDS:
                 )
                 df = pd.DataFrame([current_packet_info])
                 prediction = self.dt_model.predict(df)
-                if prediction != ['benign']:
+
+                # This statement fixes the issue of false positives by a fuckton
+                if prediction != ['benign'] and packet[IP].dst == self.local_pc_ip:
                     match prediction[0]:
                         case 'nmap':
                             textbox.config(state=NORMAL)
