@@ -48,74 +48,58 @@ class PacketAnalysis:
                 current_packet_info = {}
                 # current_packet_info['src_ip'] = packet[IP].src
                 # current_packet_info['dst_ip'] = packet[IP].dst
-                current_packet_info[self.columns[0]] = packet[IP].src
-                current_packet_info[self.columns[1]] = packet[IP].dst
-                current_packet_info[self.columns[2]] = packet[TCP].dport
-                current_packet_info[self.columns[3]] = packet[TCP].sport
-                current_packet_info[self.columns[4]] = packet[TCP].time
-                current_packet_info[self.columns[5]] = packet[IP].proto
-                current_packet_info[self.columns[6]] = str(packet[TCP].flags)
-                current_packet_info[self.columns[7]] = current_packet_time - self.prev_packet_time
+                current_packet_info[self.columns[0]] = packet[TCP].dport
+                current_packet_info[self.columns[1]] = packet[TCP].sport
+                current_packet_info[self.columns[2]] = packet[IP].proto
+                current_packet_info[self.columns[3]] = str(packet[TCP].flags)
+                current_packet_info[self.columns[4]] = current_packet_time - self.prev_packet_time
                 self.prev_packet_time = current_packet_time
                 if packet[IP].src == self.local_pc_ip:
                     # Get the size of source to destination packets
-                    current_packet_info[self.columns[8]] = len(bytes(packet[TCP]))
-                    current_packet_info[self.columns[9]] = 0
+                    current_packet_info[self.columns[5]] = len(bytes(packet[TCP]))
+                    current_packet_info[self.columns[6]] = 0
                 elif packet[IP].src != self.local_pc_ip:
                     # Get the size of dest to source packets
-                    current_packet_info[self.columns[8]] = 0
-                    current_packet_info[self.columns[9]] = len(bytes(packet[TCP]))
-                current_packet_info[self.columns[10]] = len(packet[TCP].payload)
-                current_packet_info[self.columns[11]] = packet[IP].ttl
-                current_packet_info[self.columns[12]] = sys.getsizeof(packet[TCP].payload)
-                current_packet_info[self.columns[13]] = self.label
-                # Perform aggregation here
-                if len(self.packet_info) == 10:
-                    grouped_data = pd.DataFrame(self.packet_info)
-                    grouped_data['time'] = pd.to_datetime(grouped_data['time'], unit='s')
-                    grouped_data = grouped_data.groupby(['src_ip', 'dst_ip','dport'])
-                    aggregated_data = []
-                    for group, data in grouped_data:
-                        data = data.drop(['src_ip', 'dst_ip', 'sport', 'dport'], axis=1)
-                        resampled_data = data.resample('5s', on='time').mean()
-                        resampled_data = pd.concat([data[['src_ip', 'dst_ip', 'sport', 'dport']], resampled_data], axis=1)
-                        aggregated_data.append(resampled_data)
-                    aggregated_data = pd.concat(aggregated_data)
-                    print(aggregated_data.head())
-                    aggregated_data.to_csv('agg.csv', index=False)
+                    current_packet_info[self.columns[5]] = 0
+                    current_packet_info[self.columns[6]] = len(bytes(packet[TCP]))
+                current_packet_info[self.columns[7]] = len(packet[TCP].payload)
+                current_packet_info[self.columns[8]] = packet[IP].ttl
+                current_packet_info[self.columns[9]] = sys.getsizeof(packet[TCP].payload)
+                current_packet_info[self.columns[10]] = self.label
                 self.packet_info.append(current_packet_info)
 
             elif UDP in packet:
                 current_packet_time = packet[UDP].time
                 current_packet_info = {}
-                current_packet_info[self.columns[0]] = packet[IP].src
-                current_packet_info[self.columns[1]] = packet[IP].dst
-                current_packet_info[self.columns[2]] = packet[UDP].sport
-                current_packet_info[self.columns[3]] = packet[UDP].dport
-                current_packet_info[self.columns[4]] = packet[UDP].time
-                current_packet_info[self.columns[5]] = packet[IP].proto
-                current_packet_info[self.columns[6]] = 0
-                current_packet_info[self.columns[7]] = current_packet_time - self.prev_packet_time
+                # current_packet_info[self.columns[0]] = packet[IP].src
+                # current_packet_info[self.columns[1]] = packet[IP].dst
+                current_packet_info[self.columns[0]] = packet[UDP].sport
+                current_packet_info[self.columns[1]] = packet[UDP].dport
+                current_packet_info[self.columns[2]] = packet[IP].proto
+                current_packet_info[self.columns[3]] = 0
+                current_packet_info[self.columns[4]] = current_packet_time - self.prev_packet_time
                 self.prev_packet_time = current_packet_time
                 if packet[IP].src == self.local_pc_ip:
                     # Get the size of source to destination packets
-                    current_packet_info[self.columns[8]] = len(bytes(packet[UDP]))
-                    current_packet_info[self.columns[9]] = 0
+                    current_packet_info[self.columns[5]] = len(bytes(packet[UDP]))
+                    current_packet_info[self.columns[6]] = 0
                 elif packet[IP].src != self.local_pc_ip:
                     # Get the size of dest to source packets
-                    current_packet_info[self.columns[8]] = 0
-                    current_packet_info[self.columns[9]] = len(bytes(packet[UDP]))
-                current_packet_info[self.columns[10]] = len(packet[UDP].payload)
-                current_packet_info[self.columns[11]] = 0
-                current_packet_info[self.columns[12]] = sys.getsizeof(packet[UDP].payload)
-                current_packet_info[self.columns[13]] = self.label
+                    current_packet_info[self.columns[5]] = 0
+                    current_packet_info[self.columns[6]] = len(bytes(packet[UDP]))
+                current_packet_info[self.columns[7]] = len(packet[UDP].payload)
+                current_packet_info[self.columns[8]] = 0
+                current_packet_info[self.columns[9]] = sys.getsizeof(packet[UDP].payload)
+                current_packet_info[self.columns[10]] = self.label
                 self.packet_info.append(current_packet_info)
-                pprint(current_packet_info)
 
                 """TODO: Update this code to capture ICMP info as well"""
             
             elif ICMP in packet:
                 print('ICMP PACKET RECEIVED!')
+
+            if len(self.packet_info) % 100 == 0:
+                print(f"Total Packets Collected: {len(self.packet_info)}")
 
     def start_sniffer(self):
         self.label = input("label: ")

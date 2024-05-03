@@ -8,6 +8,7 @@ import pandas as pd
 import configparser
 import yara
 import logging
+from itertools import zip_longest
 
 sniffer_stop = False
 textbox = None
@@ -20,7 +21,17 @@ class NIDS:
           rule_file_path = os.path.join(src_path,'rules.conf')
           yara_dir = os.path.join(src_path, 'yara-rules')
           # store all yara files inside a list
-          self.yara_files = [f for f in os.listdir(yara_dir) if os.path.isfile(os.path.join(yara_dir,f))]
+          temp_yara_filenames = [file for file in os.listdir(yara_dir) if os.path.isfile(os.path.join(yara_dir,file))]
+          self.yara_files = []
+          for i in range(len(temp_yara_filenames)):
+              self.yara_files.append(f'namepsace{i}')
+              self.yara_files.append(os.path.join(yara_dir,temp_yara_filenames[i]))
+          pairs = zip_longest(*[iter(self.yara_files)] * 2, fillvalue=None)
+          self.yara_files = {key: value for key,value in pairs} 
+          
+          # Trying to delete temp variables
+          del temp_yara_filenames
+          del pairs
           self.dt_model = load(file_path)
           self.columns = [
            'dport', 'sport','protocol', 'flags', 'time bw prev packet','spkts','dpkts' ,'pkt_len','ttl', 'payload size'
@@ -38,7 +49,10 @@ class NIDS:
 
     # TODO: Implementing yara rules for NIDS and match packet payloads against the yara rules
     def yara_rules_match(self,packet_payload):
-        # print(self.yara_files)
+        
+        rules = yara.compile(filepaths=self.yara_files)
+        print(packet_payload)
+        matcher = rules.match(packet_payload)
         return
 
     # TODO: Implement NIDS rules. Use a config file for that.
@@ -249,13 +263,10 @@ class NIDS:
                     case 17:
                         protocol = 'udp'
                 
-                # If packet is UDP or TCP then send it's payload to yara for matching
-                if protocol == 'udp' or protocol == 'tcp':
-                    match protocol:
-                        case 'tcp':
-                            self.yara_rules_match(packet_payload=packet[TCP].payload)
-                        case 'udp':
-                            self.yara_rules_match(packet_payload=packet[UDP].payload)
+                # If packet has HTTP layer then send it's payload to yara for matching
+                if packet.haslayer('Raw') and packet.haslayer('HTTP'):
+                    http_payload = packet['Raw'].payload
+                    self.yara_rules_match(http_payload)
                 for dict in self.rule_dictionary:
                     if packet[IP].src == dict['ip'] and \
                         packet[protocol] and dict['state'] == 'allow':
