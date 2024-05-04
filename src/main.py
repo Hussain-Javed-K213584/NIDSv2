@@ -1,5 +1,7 @@
 from tkinter import *
 import tkinter.scrolledtext as scrolledtext
+from tkinter import ttk
+import sv_ttk
 from scapy.all import *
 from joblib import load
 import threading
@@ -10,6 +12,7 @@ import yara
 import logging
 from itertools import zip_longest
 from pprint import pprint
+from platform import system
 
 sniffer_stop = False
 textbox = None
@@ -41,7 +44,7 @@ class NIDS:
           self.prev_packet_time = 0
           self.label = ''
           self.file_name = ''
-          self.local_pc_ip = get_if_addr('ens33')
+          self.local_pc_ip = get_if_addr('Realtek Gaming GbE Family Controller')
           self.config_parser = configparser.ConfigParser()
           self.config_parser.read(rule_file_path)
           self.rule_dictionary = []
@@ -53,8 +56,10 @@ class NIDS:
         
         rules = yara.compile(filepaths=self.yara_files)
         matcher = rules.match(data=packet_payload.decode())
-        pprint(matcher)
-        return
+        if matcher == {}:
+            return None
+        else:
+            return matcher
 
     # TODO: Implement NIDS rules. Use a config file for that.
     def rule_parser(self):
@@ -112,7 +117,7 @@ class NIDS:
 
     def _scapy_sniffer(self):
         global sniffer_stop
-        sniff(iface='ens33',prn=self._feature_extractor,stop_filter=self._stop_sniffing)
+        sniff(iface='Realtek Gaming GbE Family Controller',prn=self._feature_extractor,stop_filter=self._stop_sniffing)
     
     def gui_init(self):
         """
@@ -122,20 +127,16 @@ class NIDS:
         window = Tk()
         window.geometry('1024x768')
         window.title("NIDSv2")
-        header_frame = Frame(window,width=200,height=400,
-                             highlightbackground='black',
-                             highlightthickness=1)
+        header_frame = ttk.Frame(window,width=200,height=400)
         header_frame.grid(row=0,column=0,columnspan=2, 
                           padx=10,pady=5)
-        header_label = Label(header_frame,text='Welcome To NIDSv2',
-                      font=('Arial',20,'bold'),bg='red')
+        header_label = ttk.Label(header_frame,text='Welcome To NIDSv2',
+                      font=('Arial',20,'bold'))
         header_label.grid(row=0,column=0,columnspan=2)
 
-        left_frame = Frame(window,width=200, height=200,
-                           highlightbackground='black',
-                           highlightthickness=1)
+        left_frame = ttk.Frame(window,width=200, height=200)
         left_frame.grid(row=1,rowspan=3,column=0, padx=10, pady=5)
-        textbox_label = Label(left_frame,text='Sniffer Logs:',
+        textbox_label = ttk.Label(left_frame,text='Sniffer Logs:',
                               font=('Arial',8))
         textbox_label.grid(row=1,column=0)
         # textbox = Text(left_frame)
@@ -148,17 +149,15 @@ class NIDS:
         textbox['font'] = ('consolas',12)
         textbox.config(state=DISABLED)
         textbox.grid(row=2,column=0)
-        right_frame = Frame(window,width=100,height=200)
+        right_frame = ttk.Frame(window,width=100,height=200)
         right_frame.grid(row=1,column=3)
         # This is responsible to display our logs
         # Creating the start and stop buttons
-        start_button = Button(right_frame,
+        start_button = ttk.Button(right_frame,
                               text='Start NIDS',
-                              font=('Arial',10),
                               state=ACTIVE)
-        stop_button = Button(right_frame,
+        stop_button = ttk.Button(right_frame,
                               text='Stop NIDS',
-                              font=('Arial',10),
                               state=DISABLED)
         start_button.config(command=lambda: self._starter(start_button,
                                                     stop_button))
@@ -166,6 +165,10 @@ class NIDS:
                                                    stop_button))
         start_button.grid()
         stop_button.grid()
+
+        # Set theme only if OS is windows
+        if system() == 'Windows':
+            sv_ttk.set_theme("light")
         window.mainloop()
 
     def _flags_to_encode(self, tcp_flags: str) -> int:
@@ -267,6 +270,7 @@ class NIDS:
                 # If packet has HTTP layer then send it's payload to yara for matching
                 if protocol == 'tcp' and packet[TCP].dport == 80:
                     # TODO: Hussain, do yara matching in another thread please
+                    # TODO: Add it's output to logs
                     http_payload = bytes(packet[TCP].payload)
                     self.yara_rules_match(http_payload)
                 for dict in self.rule_dictionary:
@@ -279,8 +283,11 @@ class NIDS:
                 )
                 df = pd.DataFrame([current_packet_info])
                 prediction = self.dt_model.predict(df)
-
+                print(f"dst: {packet[IP].dst} -> local: {self.local_pc_ip}")
                 # This statement fixes the issue of false positives by a fuckton
+
+                # TODO: Limit the amount of output that comes on the display box.
+                # TODO: Add timestamp to output logs as well.
                 if prediction != ['benign'] and packet[IP].dst == self.local_pc_ip:
                     match prediction[0]:
                         case 'nmap':
