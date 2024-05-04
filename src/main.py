@@ -2,6 +2,7 @@ from tkinter import *
 import tkinter.scrolledtext as scrolledtext
 from tkinter import ttk
 import sv_ttk
+from ttkthemes import ThemedTk
 from scapy.all import *
 from joblib import load
 import threading
@@ -177,6 +178,10 @@ class NIDS:
         global textbox
         global menu
         window = Tk()
+        style = None
+        if system() == 'Linux':
+            style = ttk.Style(window)
+            style.theme_use('clam')
         window.geometry('1024x768')
         window.title("NIDSv2")
         header_frame = ttk.Frame(window,width=200,height=400)
@@ -191,18 +196,15 @@ class NIDS:
         textbox_label = ttk.Label(left_frame,text='Sniffer Logs:',
                               font=('Arial',8))
         textbox_label.grid(row=1,column=0)
-        # textbox = Text(left_frame)
-        # text_scroll = Scrollbar(left_frame)
-        # text_scroll.config(command=textbox.yview)
-        # textbox.config(state=DISABLED,yscrollcommand=text_scroll.set)
-        # textbox.grid(row=2,column=0)
-        # text_scroll.grid(row=2,column=1)
 
-        # This is responsible to display our logs
-        textbox = scrolledtext.ScrolledText(left_frame,undo=True)
-        textbox['font'] = ('consolas',12)
+        y_scroll = ttk.Scrollbar(left_frame)
+        textbox = Text(left_frame, yscrollcommand=y_scroll.set,width=100,height=30)
+        y_scroll.grid(sticky='ns')
+        y_scroll.config(command=textbox.yview)
         textbox.config(state=DISABLED)
         textbox.grid(row=2,column=0)
+
+        # This is responsible to display our logs
         right_frame = ttk.Frame(window,width=100,height=200)
         right_frame.grid(row=2,column=5, padx=20,pady=20)
         
