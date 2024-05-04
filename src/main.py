@@ -13,6 +13,7 @@ import logging
 from itertools import zip_longest
 from pprint import pprint
 from platform import system
+import re
 
 sniffer_stop = False
 textbox = None
@@ -22,7 +23,7 @@ class NIDS:
     def __init__(self):
           src_path = os.path.dirname(os.path.abspath(__file__))
           file_path = os.path.join(src_path,'../model_training/dt_classifier.pkl')
-          rule_file_path = os.path.join(src_path,'rules.conf')
+          self.rule_file_path = os.path.join(src_path,'rules.conf')
           yara_dir = os.path.join(src_path, 'yara-rules')
           # store all yara files inside a list
           temp_yara_filenames = [file for file in os.listdir(yara_dir) if os.path.isfile(os.path.join(yara_dir,file))]
@@ -30,6 +31,8 @@ class NIDS:
           for i in range(len(temp_yara_filenames)):
               self.yara_files.append(f'namepsace{i}')
               self.yara_files.append(os.path.join(yara_dir,temp_yara_filenames[i]))
+
+            # I do not know what this does but I do know this helps in coverting list to a dict
           pairs = zip_longest(*[iter(self.yara_files)] * 2, fillvalue=None)
           self.yara_files = {key: value for key,value in pairs} 
           
@@ -44,28 +47,47 @@ class NIDS:
           self.prev_packet_time = 0
           self.label = ''
           self.file_name = ''
-          self.local_pc_ip = get_if_addr('Realtek Gaming GbE Family Controller')
+          self.local_pc_ip = get_if_addr('ens33')
           self.config_parser = configparser.ConfigParser()
-          self.config_parser.read(rule_file_path)
           self.rule_dictionary = []
           logging.basicConfig(filename='alerts.log', filemode='a',format='%(asctime)s - %(message)s', datefmt='%d-%b-%y %H:%M:%S')
 
 
-    # TODO: Implementing yara rules for NIDS and match packet payloads against the yara rules
-    def yara_rules_match(self,packet_payload):
+    def yara_rules_match(self,packet_payload:bytes,pkt):
+        """
+        A function that takes in HTTP payload and runs it against
+        the YARA rule to find a match. If a match is found against
+        a yara rule then it is logged in `alerts.log`.
+
+        Parameters
+        ---
+            packet_payload: HTTP packet of type bytes()
+            pkt: The sniffed packet using scapy. Used to provide the IP address and port.
         
+        returns
+        ---
+            Nothing
+        """
+        regex_url_pattern = r'\b(?:GET|POST)\s+([^\s?]+)'
+        regex = re.compile(regex_url_pattern)
         rules = yara.compile(filepaths=self.yara_files)
         matcher = rules.match(data=packet_payload.decode())
-        if matcher == {}:
-            return None
-        else:
-            return matcher
-
-    # TODO: Implement NIDS rules. Use a config file for that.
+        if matcher != {}:
+            urls_found = regex.findall(packet_payload.decode())
+            for _, key in enumerate(matcher):
+                for dict in matcher[key]:
+                    if dict['matches'] == True:
+                        print(f'yara rule matched on {dict["rule"]}')
+                        textbox.config(state=NORMAL)
+                        textbox.insert(END,f"Possible {dict['rule']} being performed on host port {pkt[IP].dport} by {pkt[IP].src} on endpoint {urls_found[0]}\n")
+                        logging.warning(f"Possible {dict['rule']} being performed on host port {pkt[IP].dport} by {pkt[IP].src} on endpoint {urls_found[0]}") 
+                        textbox.config(state=DISABLED)
+    # TODO: Test that this function works as intended.
     def rule_parser(self):
         """
             Parses a config file on allow and deny requests
         """
+        self.config_parser.read(self.rule_file_path)
         ip_list = self.config_parser['RULE']['ip'].split(',')
         port_list = self.config_parser['RULE']['port'].split(',')
         proto_list = self.config_parser['RULE']['protocol'].split(',')
@@ -79,7 +101,8 @@ class NIDS:
             temp_dict = {
                 'ip':ip_list[i],
                 'port':port_list[i],
-                'protocol':proto_list[i]
+                'protocol':proto_list[i],
+                'state':state_list[i]
             }
             self.rule_dictionary.append(temp_dict)
 
@@ -93,6 +116,7 @@ class NIDS:
             Button command which disables the `start button`
             and enables the `stop button`. It also starts
             the live sniffing process by started another python process.
+            It also reloads the rules.
         """
         global sniffer_stop
         global sniffer_thread
@@ -114,10 +138,11 @@ class NIDS:
         stop_button.config(state=DISABLED)
         sniffer_stop = True
         start_button.config(state=ACTIVE)
+        self.rule_dictionary.clear()
 
     def _scapy_sniffer(self):
         global sniffer_stop
-        sniff(iface='Realtek Gaming GbE Family Controller',prn=self._feature_extractor,stop_filter=self._stop_sniffing)
+        sniff(iface='ens33',prn=self._feature_extractor,stop_filter=self._stop_sniffing)
     
     def gui_init(self):
         """
@@ -125,7 +150,7 @@ class NIDS:
         """
         global textbox
         window = Tk()
-        window.geometry('1024x768')
+        window.geometry('600x480')
         window.title("NIDSv2")
         header_frame = ttk.Frame(window,width=200,height=400)
         header_frame.grid(row=0,column=0,columnspan=2, 
@@ -267,16 +292,26 @@ class NIDS:
                     case 17:
                         protocol = 'udp'
                 
+                match protocol:
+                    case 'tcp':
+                        for dict in self.rule_dictionary:
+                            if (packet[IP].src == dict['ip']) and \
+                                (packet.haslayer(TCP) and dict['state'] == 'allow') \
+                                    and (packet[IP].dst == self.local_pc_ip):
+                                return
+                    case 'udp':
+                        for dict in self.rule_dictionary:
+                            if packet[IP].src == dict['ip'] and \
+                                packet.haslayer(UDP) and dict['state'] == 'allow'\
+                                    and (packet[IP].dst == self.local_pc_ip):
+                                return
+                
                 # If packet has HTTP layer then send it's payload to yara for matching
                 if protocol == 'tcp' and packet[TCP].dport == 80:
                     # TODO: Hussain, do yara matching in another thread please
                     # TODO: Add it's output to logs
                     http_payload = bytes(packet[TCP].payload)
-                    self.yara_rules_match(http_payload)
-                for dict in self.rule_dictionary:
-                    if packet[IP].src == dict['ip'] and \
-                        packet[protocol] and dict['state'] == 'allow':
-                        continue
+                    self.yara_rules_match(http_payload,packet) 
                     
                 current_packet_info['flags'] = self._flags_to_encode(
                     tcp_flags=current_packet_info['flags']
