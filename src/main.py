@@ -171,6 +171,11 @@ class NIDS:
         global sniffer_stop
         sniff(iface=self._get_iface(),prn=self._feature_extractor,stop_filter=self._stop_sniffing)
     
+
+    def _scroll_text(self,event):
+        global textbox
+        textbox.yview_scroll(-1*(event.delta//120), "units")
+
     def gui_init(self):
         """
             The function that start the GUI. Should be called in the end.
@@ -197,12 +202,15 @@ class NIDS:
                               font=('Arial',8))
         textbox_label.grid(row=1,column=0)
 
-        y_scroll = ttk.Scrollbar(left_frame)
-        textbox = Text(left_frame, yscrollcommand=y_scroll.set,width=100,height=30)
-        y_scroll.grid(sticky='ns')
-        y_scroll.config(command=textbox.yview)
-        textbox.config(state=DISABLED)
-        textbox.grid(row=2,column=0)
+        textbox = Text(left_frame,width=100,height=30)
+        textbox.grid(row=1,column=0)
+        # Add a scrollbar to our textbox
+        y_scroll = ttk.Scrollbar(left_frame,command=textbox.yview)
+        y_scroll.grid(row=1,column=1)
+        textbox.config(state=DISABLED,yscrollcommand=y_scroll.set)
+
+        # Bind the mouse wheel to scroll the text widget
+        textbox.bind("<MouseWheel>", self._scroll_text)
 
         # This is responsible to display our logs
         right_frame = ttk.Frame(window,width=100,height=200)
@@ -241,8 +249,8 @@ class NIDS:
         dropdown.grid()
 
         # Set theme only if OS is windows
-        if system() == 'Windows':
-            sv_ttk.set_theme("dark")
+        # if system() == 'Windows':
+        #     sv_ttk.set_theme("light")
         window.mainloop()
 
     def _flags_to_encode(self, tcp_flags: str) -> int:
