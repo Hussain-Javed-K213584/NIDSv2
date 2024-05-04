@@ -3,7 +3,6 @@ import tkinter.scrolledtext as scrolledtext
 from tkinter import ttk
 import sv_ttk
 from scapy.all import *
-from scapy.arch.windows import get_windows_if_list
 from joblib import load
 import threading
 import os
@@ -15,6 +14,9 @@ from itertools import zip_longest
 from pprint import pprint
 from platform import system
 import re
+
+if system() == 'Windows':
+    from scapy.arch.windows import get_windows_if_list
 
 sniffer_stop = False
 textbox = None
@@ -54,11 +56,10 @@ class NIDS:
           # Get interface list based on operating system
           self.windows_if_list = None
           self.linux_if_list = None
-          self.NETWORK_INTERFACE = None
+          self.NETWORK_INTERFACE = ''
           self.local_pc_ip = get_if_addr(self.NETWORK_INTERFACE)
           if system() == 'Windows':
               self.windows_if_list = get_windows_if_list()
-              pprint(self.windows_if_list)
           elif system() == 'Linux':
               self.linux_if_list = get_if_list()
           logging.basicConfig(filename='alerts.log', filemode='a',format='%(asctime)s - %(message)s', datefmt='%d-%b-%y %H:%M:%S')
@@ -93,6 +94,8 @@ class NIDS:
                         textbox.insert(END,f"Possible {dict['rule']} being performed on host port {pkt[IP].dport} by {pkt[IP].src} on endpoint {urls_found[0]}\n")
                         logging.warning(f"Possible {dict['rule']} being performed on host port {pkt[IP].dport} by {pkt[IP].src} on endpoint {urls_found[0]}") 
                         textbox.config(state=DISABLED)
+        return
+
     # TODO: Test that this function works as intended.
     def rule_parser(self):
         """
@@ -227,6 +230,9 @@ class NIDS:
             for dict in self.windows_if_list:
                 if dict['mac'] != '':
                     interface_options.append(dict['description'] + '  ')
+        elif system() == 'Linux':
+            for interface in self.linux_if_list:
+                interface_options.append(interface)
 
         # Creating the dropdown menu
         dropdown = ttk.OptionMenu(window, menu,*interface_options)
@@ -350,9 +356,11 @@ class NIDS:
                 # If packet has HTTP layer then send it's payload to yara for matching
                 if protocol == 'tcp' and packet[TCP].dport == 80:
                     # TODO: Hussain, do yara matching in another thread please
-                    # TODO: Add it's output to logs
                     http_payload = bytes(packet[TCP].payload)
-                    self.yara_rules_match(http_payload,packet) 
+                    yara_thread = threading.Thread(target=self.yara_rules_match, args=(http_payload,packet,))
+                    # self.yara_rules_match(http_payload,packet) 
+                    yara_thread.daemon = True
+                    yara_thread.start()
                     
                 current_packet_info['flags'] = self._flags_to_encode(
                     tcp_flags=current_packet_info['flags']
