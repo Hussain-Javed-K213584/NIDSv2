@@ -15,6 +15,7 @@ from itertools import zip_longest
 from pprint import pprint
 from platform import system
 import re
+import darkdetect
 
 if system() == 'Windows':
     from scapy.arch.windows import get_windows_if_list
@@ -184,9 +185,6 @@ class NIDS:
         global menu
         window = Tk()
         style = None
-        if system() == 'Linux':
-            style = ttk.Style(window)
-            style.theme_use('clam')
         window.geometry('1024x768')
         window.title("NIDSv2")
         header_frame = ttk.Frame(window,width=200,height=400)
@@ -230,8 +228,8 @@ class NIDS:
         start_button.grid(padx=10,pady=10)
         stop_button.grid(padx=10,pady=10)
 
-        bottom_frame = ttk.Frame(window, width=300,height=100)
-        bottom_frame.grid(row=3)
+        bottom_frame = ttk.Frame(window, width=300,height=5)
+        bottom_frame.grid(row=4,pady=20,padx=20)
         # Set the options for the menu
         menu = StringVar()
         menu.set("Select the network interface  ")
@@ -248,9 +246,16 @@ class NIDS:
         dropdown = ttk.OptionMenu(window, menu,*interface_options)
         dropdown.grid()
 
-        # Set theme only if OS is windows
-        # if system() == 'Windows':
-        #     sv_ttk.set_theme("light")
+        # Set theme only based on OS
+        match system():
+            case 'Windows':
+                if darkdetect.isDark():
+                    sv_ttk.set_theme("dark")
+                else:
+                    sv_ttk.set_theme("light")
+            case 'Linux':
+                style = ttk.Style(window)
+                style.theme_use('clam')
         window.mainloop()
 
     def _flags_to_encode(self, tcp_flags: str) -> int:
