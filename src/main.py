@@ -250,7 +250,7 @@ class NIDS:
         dropdown = ttk.OptionMenu(window, menu,*interface_options)
         dropdown.grid()
 
-        Set theme only based on OS
+        # Set theme only based on OS
         match system():
             case 'Windows':
                 if darkdetect.isDark():
