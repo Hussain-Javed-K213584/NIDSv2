@@ -93,7 +93,7 @@ class NIDS:
                     if dict['matches'] == True:
                         print(f'yara rule matched on {dict["rule"]}')
                         textbox.config(state=NORMAL)
-                        textbox.insert(END,f"{datetime.now().strftime("%d-%b-%y %H:%M:%S")} - Possible {dict['rule']} being performed on host port {pkt[IP].dport} by {pkt[IP].src} on endpoint {urls_found[0]}\n")
+                        textbox.insert(END,f"{datetime.now().strftime('%d-%b-%y %H:%M:%S')} - Possible {dict['rule']} being performed on host port {pkt[IP].dport} by {pkt[IP].src} on endpoint {urls_found[0]}\n")
                         logging.warning(f"Possible {dict['rule']} being performed on host port {pkt[IP].dport} by {pkt[IP].src} on endpoint {urls_found[0]}") 
                         textbox.config(state=DISABLED)
         return
@@ -185,7 +185,7 @@ class NIDS:
         global menu
         window = Tk()
         style = None
-        window.geometry('1024x768')
+        window.geometry('1280x720')
         window.title("NIDSv2")
         header_frame = ttk.Frame(window,width=200,height=400)
         header_frame.grid(row=0,column=0,columnspan=2, 
@@ -200,7 +200,7 @@ class NIDS:
                               font=('Arial',8))
         textbox_label.grid(row=1,column=0)
 
-        textbox = Text(left_frame,width=100,height=30)
+        textbox = Text(left_frame,width=100,height=30,font=('Arial',13))
         textbox.grid(row=1,column=0)
         # Add a scrollbar to our textbox
         y_scroll = ttk.Scrollbar(left_frame,command=textbox.yview)
@@ -230,6 +230,10 @@ class NIDS:
 
         bottom_frame = ttk.Frame(window, width=300,height=5)
         bottom_frame.grid(row=4,pady=20,padx=20)
+
+        # Label for dropdown menu
+        dropdown_label = ttk.Label(bottom_frame,font=('Arial', 8), text="Choose your interface:")
+        dropdown_label.grid()
         # Set the options for the menu
         menu = StringVar()
         menu.set("Select the network interface  ")
@@ -246,7 +250,7 @@ class NIDS:
         dropdown = ttk.OptionMenu(window, menu,*interface_options)
         dropdown.grid()
 
-        # Set theme only based on OS
+        Set theme only based on OS
         match system():
             case 'Windows':
                 if darkdetect.isDark():
