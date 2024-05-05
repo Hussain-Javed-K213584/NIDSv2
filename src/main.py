@@ -21,7 +21,7 @@ if system() == 'Windows':
     from scapy.arch.windows import get_windows_if_list
 
 sniffer_stop = False
-textbox = None
+treeview = None
 sniffer_thread = None
 menu = None
 
@@ -60,6 +60,7 @@ class NIDS:
           self.linux_if_list = None
           self.NETWORK_INTERFACE = ''
           self.local_pc_ip = get_if_addr(self.NETWORK_INTERFACE)
+          self.packet_count = 0
           if system() == 'Windows':
               self.windows_if_list = get_windows_if_list()
           elif system() == 'Linux':
@@ -92,10 +93,10 @@ class NIDS:
                 for dict in matcher[key]:
                     if dict['matches'] == True:
                         print(f'yara rule matched on {dict["rule"]}')
-                        textbox.config(state=NORMAL)
-                        textbox.insert(END,f"Possible {dict['rule']} being performed on host port {pkt[IP].dport} by {pkt[IP].src} on endpoint {urls_found[0]}\n")
+                        treeview.insert(parent='',index='end', iid=self.packet_count, text="",values=(self.packet_count, datetime.now().strftime("%d-%b-%y %H:%M:%S"), packet[IP].src,
+                                                                                                          packet[IP].dport,prediction[0]))
                         logging.warning(f"Possible {dict['rule']} being performed on host port {pkt[IP].dport} by {pkt[IP].src} on endpoint {urls_found[0]}") 
-                        textbox.config(state=DISABLED)
+                        
         return
 
     # TODO: Test that this function works as intended.
@@ -174,14 +175,14 @@ class NIDS:
     
 
     def _scroll_text(self,event):
-        global textbox
-        textbox.yview_scroll(-1*(event.delta//120), "units")
+        global treeview
+        treeview.yview_scroll(-1*(event.delta//120), "units")
 
     def gui_init(self):
         """
             The function that start the GUI. Should be called in the end.
         """
-        global textbox
+        global treeview
         global menu
         window = Tk()
         style = None
@@ -200,15 +201,31 @@ class NIDS:
                               font=('Arial',8))
         textbox_label.grid(row=1,column=0)
 
-        textbox = Text(left_frame,width=100,height=30)
-        textbox.grid(row=1,column=0)
+        treeview = ttk.Treeview(left_frame)
+        # Set the columns for treeview
+        treeview['columns'] = ('#1','#2','#3','#4')
+        # This is responsible for column formatting
+        treeview.column("#0", anchor=W,width=120)
+        treeview.column("#1", anchor=CENTER, width=180)
+        treeview.column("#2", anchor=W, width=180)
+        treeview.column("#3", anchor=W, width=180)
+        treeview.column("#4", anchor=W, width=150)
+        
+        # This is what creates our heading
+        treeview.heading("#0", text="Packet Number", anchor=CENTER)
+        treeview.heading("#1", text="Timestamp", anchor=CENTER)
+        treeview.heading("#2", text="Source IP Address", anchor=CENTER)
+        treeview.heading("#3", text="Port Targeted", anchor=CENTER)
+        treeview.heading("#4", text="Attack Type", anchor=CENTER)
+
+        treeview.grid(row=1,column=0)
         # Add a scrollbar to our textbox
-        y_scroll = ttk.Scrollbar(left_frame,command=textbox.yview)
+        y_scroll = ttk.Scrollbar(left_frame,command=treeview.yview)
         y_scroll.grid(row=1,column=1)
-        textbox.config(state=DISABLED,yscrollcommand=y_scroll.set)
+        treeview.config(yscrollcommand=y_scroll.set)
 
         # Bind the mouse wheel to scroll the text widget
-        textbox.bind("<MouseWheel>", self._scroll_text)
+        treeview.bind("<MouseWheel>", self._scroll_text)
 
         # This is responsible to display our logs
         right_frame = ttk.Frame(window,width=100,height=200)
@@ -294,9 +311,10 @@ class NIDS:
                Callback function passed to `prn` argument of scapy's
                sniff function. This function extracts the relevent features for our model.
           """
-          global textbox
+          global treeview
 
           if IP in packet:
+            self.packet_count += 1
             if TCP in packet:
                 current_packet_time = packet[TCP].time
                 current_packet_info = {}
@@ -390,20 +408,20 @@ class NIDS:
                 if prediction != ['benign'] and packet[IP].dst == self.local_pc_ip:
                     match prediction[0]:
                         case 'nmap':
-                            textbox.config(state=NORMAL)
-                            textbox.insert(END,f'Possible {prediction[0]} scan from {packet[IP].src}'+"\n")
-                            textbox.config(state=DISABLED)
+                            treeview.insert(parent='',index='end', iid=self.packet_count, text="test",values=(self.packet_count, datetime.now().strftime("%d-%b-%y %H:%M:%S"), packet[IP].src,
+                                                                                                          packet[IP].dport,prediction[0]))
+                            
                             logging.warning(f'Possible {prediction[0]} scan from {packet[IP].src}')
                         case 'ddos':
                             if protocol == 'udp':
-                                textbox.config(state=NORMAL)
-                                textbox.insert(END,f'Possible {prediction[0]} attack from {packet[IP].src} on port {packet[UDP].dport}'+"\n")
-                                textbox.config(state=DISABLED)
+                                treeview.insert(parent='',index='end', iid=self.packet_count, text="",values=(self.packet_count, datetime.now().strftime("%d-%b-%y %H:%M:%S"), packet[IP].src,
+                                                                                                          packet[IP].dport,prediction[0]))
+                                
                                 logging.warning(f'Possible {prediction[0]} attack from {packet[IP].src} on port {packet[UDP].dport}')
                             elif protocol == 'tcp':
-                                textbox.config(state=NORMAL)
-                                textbox.insert(END,f'Possible {prediction[0]} attack from {packet[IP].src} on port {packet[TCP].dport}'+"\n")
-                                textbox.config(state=DISABLED)
+                                treeview.insert(parent='',index='end', iid=self.packet_count, text="",values=(self.packet_count, datetime.now().strftime("%d-%b-%y %H:%M:%S"), packet[IP].src,
+                                                                                                          packet[IP].dport,prediction[0]))
+                                
                                 logging.warning(f'Possible {prediction[0]} attack from {packet[IP].src} on port {packet[TCP].dport}')
 
                     
