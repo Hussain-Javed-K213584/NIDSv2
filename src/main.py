@@ -93,7 +93,7 @@ class NIDS:
                     if dict['matches'] == True:
                         print(f'yara rule matched on {dict["rule"]}')
                         textbox.config(state=NORMAL)
-                        textbox.insert(END,f"Possible {dict['rule']} being performed on host port {pkt[IP].dport} by {pkt[IP].src} on endpoint {urls_found[0]}\n")
+                        textbox.insert(END,f"{datetime.now().strftime("%d-%b-%y %H:%M:%S")} - Possible {dict['rule']} being performed on host port {pkt[IP].dport} by {pkt[IP].src} on endpoint {urls_found[0]}\n")
                         logging.warning(f"Possible {dict['rule']} being performed on host port {pkt[IP].dport} by {pkt[IP].src} on endpoint {urls_found[0]}") 
                         textbox.config(state=DISABLED)
         return
@@ -397,14 +397,14 @@ class NIDS:
                         case 'ddos':
                             if protocol == 'udp':
                                 textbox.config(state=NORMAL)
-                                textbox.insert(END,f'Possible {prediction[0]} attack from {packet[IP].src} on port {packet[UDP].dport}'+"\n")
+                                textbox.insert(END,f'{datetime.now().strftime("%d-%b-%y %H:%M:%S")} - Possible {prediction[0]} attack from {packet[IP].src} on port {packet[UDP].dport}'+"\n")
                                 textbox.config(state=DISABLED)
                                 logging.warning(f'Possible {prediction[0]} attack from {packet[IP].src} on port {packet[UDP].dport}')
                             elif protocol == 'tcp':
                                 textbox.config(state=NORMAL)
-                                textbox.insert(END,f'Possible {prediction[0]} attack from {packet[IP].src} on port {packet[TCP].dport}'+"\n")
+                                textbox.insert(END,f'{datetime.now().strftime("%d-%b-%y %H:%M:%S")} - Possible {prediction[0]} attack from {packet[IP].src} on port {packet[TCP].dport}'+"\n")
                                 textbox.config(state=DISABLED)
-                                logging.warning(f'Possible {prediction[0]} attack from {packet[IP].src} on port {packet[TCP].dport}')
+                                logging.warning(f'{datetime.now().strftime("%d-%b-%y %H:%M:%S")} - Possible {prediction[0]} attack from {packet[IP].src} on port {packet[TCP].dport}')
 
                     
             except UnboundLocalError:
