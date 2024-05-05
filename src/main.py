@@ -93,7 +93,7 @@ class NIDS:
                 for dict in matcher[key]:
                     if dict['matches'] == True:
                         print(f'yara rule matched on {dict["rule"]}')
-                        treeview.insert(parent='',index='end', iid=self.packet_count, text="",values=(self.packet_count, datetime.now().strftime("%d-%b-%y %H:%M:%S"), packet[IP].src,
+                        treeview.insert(parent='',index='end', iid=self.packet_count, text=self.packet_count,values=(datetime.now().strftime("%d-%b-%y %H:%M:%S"), packet[IP].src,
                                                                                                           packet[IP].dport,prediction[0]))
                         logging.warning(f"Possible {dict['rule']} being performed on host port {pkt[IP].dport} by {pkt[IP].src} on endpoint {urls_found[0]}") 
                         
@@ -408,18 +408,18 @@ class NIDS:
                 if prediction != ['benign'] and packet[IP].dst == self.local_pc_ip:
                     match prediction[0]:
                         case 'nmap':
-                            treeview.insert(parent='',index='end', iid=self.packet_count, text="test",values=(self.packet_count, datetime.now().strftime("%d-%b-%y %H:%M:%S"), packet[IP].src,
+                            treeview.insert(parent='',index='end', iid=self.packet_count, text=self.packet_count,values=(datetime.now().strftime("%d-%b-%y %H:%M:%S"), packet[IP].src,
                                                                                                           packet[IP].dport,prediction[0]))
                             
                             logging.warning(f'Possible {prediction[0]} scan from {packet[IP].src}')
                         case 'ddos':
                             if protocol == 'udp':
-                                treeview.insert(parent='',index='end', iid=self.packet_count, text="",values=(self.packet_count, datetime.now().strftime("%d-%b-%y %H:%M:%S"), packet[IP].src,
+                                treeview.insert(parent='',index='end', iid=self.packet_count, text=self.packet_count,values=(datetime.now().strftime("%d-%b-%y %H:%M:%S"), packet[IP].src,
                                                                                                           packet[IP].dport,prediction[0]))
                                 
                                 logging.warning(f'Possible {prediction[0]} attack from {packet[IP].src} on port {packet[UDP].dport}')
                             elif protocol == 'tcp':
-                                treeview.insert(parent='',index='end', iid=self.packet_count, text="",values=(self.packet_count, datetime.now().strftime("%d-%b-%y %H:%M:%S"), packet[IP].src,
+                                treeview.insert(parent='',index='end', iid=self.packet_count, text="",values=(datetime.now().strftime("%d-%b-%y %H:%M:%S"), packet[IP].src,
                                                                                                           packet[IP].dport,prediction[0]))
                                 
                                 logging.warning(f'Possible {prediction[0]} attack from {packet[IP].src} on port {packet[TCP].dport}')
