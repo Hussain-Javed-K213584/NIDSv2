@@ -53,6 +53,7 @@ class NIDS:
           self.file_name = ''
           self.config_parser = configparser.ConfigParser()
           self.rule_dictionary = []
+          self.list_of_ips_logged = []
           # Get interface list based on operating system
           self.windows_if_list = None
           self.linux_if_list = None
@@ -408,34 +409,51 @@ class NIDS:
                 df = pd.DataFrame([current_packet_info])
                 prediction = self.dt_model.predict(df)
                 print(f"dst: {packet[IP].dst} -> local: {self.local_pc_ip}")
+            
                 # This statement fixes the issue of false positives by a fuckton
-
-                # TODO: Limit the amount of output that comes on the display box.
                 if prediction != ['benign'] and packet[IP].dst == self.local_pc_ip:
+                    """
+                        We know that prediction is not benign so add the source IP address
+                        to list of dictionary with timestamp. If the same source IP appears
+                        within the next 5 seconds then ignore it, else, display on GUI. Log
+                        files should not be affected.
+                    """
+                    if len(self.list_of_ips_logged) == 0:
+                        self.list_of_ips_logged.append({
+                            packet[IP].src: time.time()
+                        })
                     match prediction[0]:
                         case 'nmap':
-                            if protocol == 'udp':
-                                textbox.config(state=NORMAL)
-                                textbox.insert(END,f'{datetime.now().strftime("%d-%b-%y %H:%M:%S")} - Possible {prediction[0]} scan from {packet[IP].src} on port {packet[UDP].dport} having protocol {protocol}'+"\n")
-                                textbox.config(state=DISABLED)
+                                for dict in self.list_of_ips_logged:
+                                    if packet[IP].src not in dict:
+                                        self.list_of_ips_logged.append(
+                                            {packet[IP].src: time.time()}
+                                        )
+                                    elif packet[IP].src in dict:
+                                        # Check if 5 seconds has passed for the IP address
+                                        time_elapsed = time.time() - dict[packet[IP].src]
+                                        if time.time() - dict[packet[IP].src] >= 5:
+                                            dict[packet[IP].src] = time.time()
+                                            textbox.config(state=NORMAL)
+                                            textbox.insert(END,f'{datetime.now().strftime("%d-%b-%y %H:%M:%S")} - Possible {prediction[0]} scan from {packet[IP].src} on port {packet[IP].dport} having protocol {protocol}'+"\n")
+                                            textbox.config(state=DISABLED)
+                                # Logging should be performed as usual
                                 logging.warning(f'Possible {prediction[0]} scan from {packet[IP].src} on port {packet[IP].dport} having protocol {protocol}')
-                            elif protocol == 'tcp':
-                                textbox.config(state=NORMAL)
-                                textbox.insert(END,f'{datetime.now().strftime("%d-%b-%y %H:%M:%S")} - Possible {prediction[0]} scan from {packet[IP].src} on port {packet[TCP].dport} having protocol {protocol}'+"\n")
-                                textbox.config(state=DISABLED)
-                                logging.warning(f'Possible {prediction[0][1:]} scan from {packet[IP].src} on port {packet[TCP].dport} having protocol TCP')
                         case 'ddos':
-                            if protocol == 'udp':
-                                textbox.config(state=NORMAL)
-                                textbox.insert(END,f'{datetime.now().strftime("%d-%b-%y %H:%M:%S")} - Possible {prediction[0][1:]} attack from {packet[IP].src} on port {packet[UDP].dport} having protocol UDP'+"\n")
-                                textbox.config(state=DISABLED)
-                                logging.warning(f'Possible {prediction[0][1:]} attack from {packet[IP].src} on port {packet[UDP].dport} having protocol {protocol}')
-                            elif protocol == 'tcp':
-                                textbox.config(state=NORMAL)
-                                textbox.insert(END,f'{datetime.now().strftime("%d-%b-%y %H:%M:%S")} - Possible {prediction[0][1:]} attack from {packet[IP].src} on port {packet[TCP].dport} having protocol TCP'+"\n")
-                                textbox.config(state=DISABLED)
-                                logging.warning(f'Possible {prediction[0][1:]} attack from {packet[IP].src} on port {packet[TCP].dport} having protocol {protocol}')
-
+                                for dict in self.list_of_ips_logged:
+                                    if packet[IP].src not in dict:
+                                        self.list_of_ips_logged.append(
+                                            {packet[IP].src: time.time()}
+                                        )
+                                    elif packet[IP].src in dict:
+                                        # Check if 5 seconds has passed for the IP address
+                                        time_elapsed = time.time() - dict[packet[IP].src]
+                                        if time_elapsed >= 5:
+                                            dict[packet[IP].src] = time.time()
+                                            textbox.config(state=NORMAL)
+                                            textbox.insert(END,f'{datetime.now().strftime("%d-%b-%y %H:%M:%S")} - Possible {prediction[0][1:]} attack from {packet[IP].src} on port {packet[IP].dport} having protocol {protocol}'+"\n")
+                                            textbox.config(state=DISABLED)
+                                logging.warning(f'Possible {prediction[0][1:]} attack from {packet[IP].src} on port {packet[IP].dport} having protocol {protocol}')
                     
             except UnboundLocalError:
                 print('local var error')
