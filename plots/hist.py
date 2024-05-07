@@ -23,7 +23,7 @@ df = pd.DataFrame(data)
 numerical_columns = ['time_bw_prev_packet', 'spkts', 'dpkts', 'pkt_len', 'ttl', 'payload_size']
 
 # Create histograms
-plt.figure(figsize=(12, 8))
+plt.figure(figsize=(12, 12))
 df[numerical_columns].hist(bins=10, color='blue', alpha=0.7, edgecolor='black')
 
 # Set title and labels

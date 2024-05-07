@@ -1,5 +1,4 @@
 from tkinter import *
-import tkinter.scrolledtext as scrolledtext
 from tkinter import ttk
 import sv_ttk
 from ttkthemes import ThemedTk
@@ -12,7 +11,6 @@ import configparser
 import yara
 import logging
 from itertools import zip_longest
-from pprint import pprint
 from platform import system
 import re
 import darkdetect
@@ -64,7 +62,8 @@ class NIDS:
               self.windows_if_list = get_windows_if_list()
           elif system() == 'Linux':
               self.linux_if_list = get_if_list()
-          logging.basicConfig(filename='alerts.log', filemode='a',format='%(asctime)s - %(message)s', datefmt='%d-%b-%y %H:%M:%S')
+          logging.basicConfig(filename=f'{src_path}/alerts.log', filemode='a',format='%(asctime)s - %(message)s', datefmt='%d-%b-%y %H:%M:%S')
+          logging.info("NIDS started")
 
 
     def yara_rules_match(self,packet_payload:bytes,pkt):
@@ -349,6 +348,13 @@ class NIDS:
                 current_packet_info[self.columns[9]] = sys.getsizeof(packet[UDP].payload)
                 self.packet_info.append(current_packet_info)
 
+            elif ICMP in packet and packet[IP].dst == self.local_pc_ip:
+                textbox.config(state=NORMAL)
+                textbox.insert(END,f'{datetime.now().strftime("%d-%b-%y %H:%M:%S")} - Possible ping probing from {packet[IP].src}'+"\n")
+                textbox.config(state=DISABLED)
+                logging.warning(f'Possible ping probing from {packet[IP].src}')
+                return
+
             try:
                 # Predict the packet
                 protocol = ''
@@ -361,20 +367,35 @@ class NIDS:
                 match protocol:
                     case 'tcp':
                         for dict in self.rule_dictionary:
-                            if (packet[IP].src == dict['ip']) and \
+                            if (packet[IP].src == dict['ip']) and packet[IP].dport == dict['port'] and \
                                 (packet.haslayer(TCP) and dict['state'] == 'allow') \
                                     and (packet[IP].dst == self.local_pc_ip):
                                 return
+                            elif packet[IP].src == dict['ip'] and packet[IP].dport == dict['port'] and \
+                                packet.haslayer(TCP) and dict['state'] == 'deny'\
+                                    and (packet[IP].dst == self.local_pc_ip):
+                                textbox.config(state=NORMAL)
+                                textbox.insert(END,f'{datetime.now().strftime("%d-%b-%y %H:%M:%S")} - Packets arriving from denied IP address {packet[IP].src} on port {packet[IP].dport} having TCP protocol.\n')
+                                textbox.config(state=DISABLED)
+                                logging.warning(f'Packets arriving from denied IP address {packet[IP].src} on port {packet[IP].dport} having TCP protocol.')
+                                return
                     case 'udp':
                         for dict in self.rule_dictionary:
-                            if packet[IP].src == dict['ip'] and \
+                            if packet[IP].src == dict['ip'] and packet[IP].dport == dict['port'] and \
                                 packet.haslayer(UDP) and dict['state'] == 'allow'\
                                     and (packet[IP].dst == self.local_pc_ip):
+                                return
+                            elif packet[IP].src == dict['ip'] and packet[IP].dport == dict['port'] and \
+                                packet.haslayer(UDP) and dict['state'] == 'deny'\
+                                    and (packet[IP].dst == self.local_pc_ip):
+                                textbox.config(state=NORMAL)
+                                textbox.insert(END,f'{datetime.now().strftime("%d-%b-%y %H:%M:%S")} - Packets arriving from denied IP address {packet[IP].src} on port {packet[IP].dport} having UDP protocol.\n')
+                                textbox.config(state=DISABLED)
+                                logging.warning(f'Packets arriving from denied IP address {packet[IP].src} on port {packet[IP].dport} having UDP protocol.')
                                 return
                 
                 # If packet has HTTP layer then send it's payload to yara for matching
                 if protocol == 'tcp' and packet[TCP].dport == 80:
-                    # TODO: Hussain, do yara matching in another thread please
                     http_payload = bytes(packet[TCP].payload)
                     yara_thread = threading.Thread(target=self.yara_rules_match, args=(http_payload,packet,))
                     # self.yara_rules_match(http_payload,packet) 
@@ -390,25 +411,30 @@ class NIDS:
                 # This statement fixes the issue of false positives by a fuckton
 
                 # TODO: Limit the amount of output that comes on the display box.
-                # TODO: Add timestamp to output logs as well.
                 if prediction != ['benign'] and packet[IP].dst == self.local_pc_ip:
                     match prediction[0]:
                         case 'nmap':
-                            textbox.config(state=NORMAL)
-                            textbox.insert(END,f'Possible {prediction[0]} scan from {packet[IP].src}'+"\n")
-                            textbox.config(state=DISABLED)
-                            logging.warning(f'Possible {prediction[0]} scan from {packet[IP].src}')
+                            if protocol == 'udp':
+                                textbox.config(state=NORMAL)
+                                textbox.insert(END,f'{datetime.now().strftime("%d-%b-%y %H:%M:%S")} - Possible {prediction[0]} scan from {packet[IP].src} on port {packet[UDP].dport} having protocol {protocol}'+"\n")
+                                textbox.config(state=DISABLED)
+                                logging.warning(f'Possible {prediction[0]} scan from {packet[IP].src} on port {packet[IP].dport} having protocol {protocol}')
+                            elif protocol == 'tcp':
+                                textbox.config(state=NORMAL)
+                                textbox.insert(END,f'{datetime.now().strftime("%d-%b-%y %H:%M:%S")} - Possible {prediction[0]} scan from {packet[IP].src} on port {packet[TCP].dport} having protocol {protocol}'+"\n")
+                                textbox.config(state=DISABLED)
+                                logging.warning(f'Possible {prediction[0][1:]} scan from {packet[IP].src} on port {packet[TCP].dport} having protocol TCP')
                         case 'ddos':
                             if protocol == 'udp':
                                 textbox.config(state=NORMAL)
-                                textbox.insert(END,f'{datetime.now().strftime("%d-%b-%y %H:%M:%S")} - Possible {prediction[0]} attack from {packet[IP].src} on port {packet[UDP].dport}'+"\n")
+                                textbox.insert(END,f'{datetime.now().strftime("%d-%b-%y %H:%M:%S")} - Possible {prediction[0][1:]} attack from {packet[IP].src} on port {packet[UDP].dport} having protocol UDP'+"\n")
                                 textbox.config(state=DISABLED)
-                                logging.warning(f'Possible {prediction[0]} attack from {packet[IP].src} on port {packet[UDP].dport}')
+                                logging.warning(f'Possible {prediction[0][1:]} attack from {packet[IP].src} on port {packet[UDP].dport} having protocol {protocol}')
                             elif protocol == 'tcp':
                                 textbox.config(state=NORMAL)
-                                textbox.insert(END,f'{datetime.now().strftime("%d-%b-%y %H:%M:%S")} - Possible {prediction[0]} attack from {packet[IP].src} on port {packet[TCP].dport}'+"\n")
+                                textbox.insert(END,f'{datetime.now().strftime("%d-%b-%y %H:%M:%S")} - Possible {prediction[0][1:]} attack from {packet[IP].src} on port {packet[TCP].dport} having protocol TCP'+"\n")
                                 textbox.config(state=DISABLED)
-                                logging.warning(f'{datetime.now().strftime("%d-%b-%y %H:%M:%S")} - Possible {prediction[0]} attack from {packet[IP].src} on port {packet[TCP].dport}')
+                                logging.warning(f'Possible {prediction[0][1:]} attack from {packet[IP].src} on port {packet[TCP].dport} having protocol {protocol}')
 
                     
             except UnboundLocalError:
