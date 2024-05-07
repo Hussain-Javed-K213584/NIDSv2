@@ -1,0 +1,20 @@
+This project was made by:
+21K-3584
+21K-4753
+
+1. We will first test our NIDS against a DoS attack
+    The packets are shown on the GUI on intervals of 5 seconds
+    while they are all saved in the log file
+
+2. Next, I will start with a NMAP scan
+    the nmap scan was detected successuly
+    since there were ICMP packets involved, it also showed us that ping probing was performed
+    I will now try a few more different scans, it also detected the UDP port scan
+    The log file also has the output we needed
+3. We can also implement rules list where I can deny or allow an IP on a specific port
+    I will create a rule to deny my kali machine on attempting a connection on SSH
+    It will detect and log and IP if it's access is denied.
+
+4. Finally, I will show you how YARA rules were integrated for signature based detection
+    I have a web application running on a VM, we also get false positives sometimes
+    I will perform an SQLi on the web application

@@ -112,7 +112,7 @@ class NIDS:
             print("Invalid rule")
             exit()
         # Converting the rule to a list of dictionaries
-        
+        port_list = [int(port_num) for port_num in port_list]
         for i in range(len(ip_list)):
             temp_dict = {
                 'ip':ip_list[i],
@@ -365,16 +365,17 @@ class NIDS:
                     case 17:
                         protocol = 'udp'
                 
+                source_ip = packet[IP].src
+                destination_ip = packet[IP].dst
+                destination_port = packet[IP].dport
                 match protocol:
                     case 'tcp':
                         for dict in self.rule_dictionary:
-                            if (packet[IP].src == dict['ip']) and packet[IP].dport == dict['port'] and \
-                                (packet.haslayer(TCP) and dict['state'] == 'allow') \
-                                    and (packet[IP].dst == self.local_pc_ip):
+                            if (source_ip == dict['ip']) and (destination_port == dict['port']) and \
+                                (dict['state'] == 'allow') and (destination_ip == self.local_pc_ip):
                                 return
-                            elif packet[IP].src == dict['ip'] and packet[IP].dport == dict['port'] and \
-                                packet.haslayer(TCP) and dict['state'] == 'deny'\
-                                    and (packet[IP].dst == self.local_pc_ip):
+                            elif (source_ip == dict['ip']) and (destination_port == dict['port']) and \
+                                (dict['state'] == 'deny') and (destination_ip == self.local_pc_ip):
                                 textbox.config(state=NORMAL)
                                 textbox.insert(END,f'{datetime.now().strftime("%d-%b-%y %H:%M:%S")} - Packets arriving from denied IP address {packet[IP].src} on port {packet[IP].dport} having TCP protocol.\n')
                                 textbox.config(state=DISABLED)
@@ -382,13 +383,11 @@ class NIDS:
                                 return
                     case 'udp':
                         for dict in self.rule_dictionary:
-                            if packet[IP].src == dict['ip'] and packet[IP].dport == dict['port'] and \
-                                packet.haslayer(UDP) and dict['state'] == 'allow'\
-                                    and (packet[IP].dst == self.local_pc_ip):
+                            if (source_ip == dict['ip']) and (destination_port == dict['port']) and \
+                                (dict['state'] == 'allow') and (destination_ip == self.local_pc_ip):
                                 return
-                            elif packet[IP].src == dict['ip'] and packet[IP].dport == dict['port'] and \
-                                packet.haslayer(UDP) and dict['state'] == 'deny'\
-                                    and (packet[IP].dst == self.local_pc_ip):
+                            elif (source_ip == dict['ip']) and (destination_port == dict['port']) and \
+                                (dict['state'] == 'deny') and (destination_ip == self.local_pc_ip):
                                 textbox.config(state=NORMAL)
                                 textbox.insert(END,f'{datetime.now().strftime("%d-%b-%y %H:%M:%S")} - Packets arriving from denied IP address {packet[IP].src} on port {packet[IP].dport} having UDP protocol.\n')
                                 textbox.config(state=DISABLED)
