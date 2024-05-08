@@ -18,3 +18,5 @@ This project was made by:
 4. Finally, I will show you how YARA rules were integrated for signature based detection
     I have a web application running on a VM, we also get false positives sometimes
     I will perform an SQLi on the web application
+    the NIDS should be running on the machine hosting the web app
+    the yara match was successful

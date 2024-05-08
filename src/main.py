@@ -86,16 +86,26 @@ class NIDS:
         regex = re.compile(regex_url_pattern)
         rules = yara.compile(filepaths=self.yara_files)
         matcher = rules.match(data=packet_payload.decode())
-        if matcher != {}:
-            urls_found = regex.findall(packet_payload.decode())
-            for _, key in enumerate(matcher):
-                for dict in matcher[key]:
-                    if dict['matches'] == True:
-                        print(f'yara rule matched on {dict["rule"]}')
-                        textbox.config(state=NORMAL)
-                        textbox.insert(END,f"{datetime.now().strftime('%d-%b-%y %H:%M:%S')} - Possible {dict['rule']} being performed on host port {pkt[IP].dport} by {pkt[IP].src} on endpoint {urls_found[0]}\n")
-                        logging.warning(f"Possible {dict['rule']} being performed on host port {pkt[IP].dport} by {pkt[IP].src} on endpoint {urls_found[0]}") 
-                        textbox.config(state=DISABLED)
+        if system() == 'Windows':
+            if matcher != {}:
+                urls_found = regex.findall(packet_payload.decode())
+                for _, key in enumerate(matcher):
+                    for dict in matcher[key]:
+                        if dict['matches'] == True:
+                            print(f'yara rule matched on {dict["rule"]}')
+                            textbox.config(state=NORMAL)
+                            textbox.insert(END,f"{datetime.now().strftime('%d-%b-%y %H:%M:%S')} - Possible {dict['rule']} being performed on host port {pkt[IP].dport} by {pkt[IP].src} on endpoint {urls_found[0]}\n")
+                            logging.warning(f"Possible {dict['rule']} being performed on host port {pkt[IP].dport} by {pkt[IP].src} on endpoint {urls_found[0]}") 
+                            textbox.config(state=DISABLED)
+        elif system() == 'Linux':
+            if matcher != []:
+                urls_found = regex.findall(packet_payload.decode())
+                for match in matcher:
+                    print(f'yara rule matched on {match}')
+                    textbox.config(state=NORMAL)
+                    textbox.insert(END,f"{datetime.now().strftime('%d-%b-%y %H:%M:%S')} - Possible {match} being performed on host port {pkt[IP].dport} by {pkt[IP].src} on endpoint {urls_found[0]}\n")
+                    logging.warning(f"Possible {match} being performed on host port {pkt[IP].dport} by {pkt[IP].src} on endpoint {urls_found[0]}") 
+                    textbox.con
         return
 
     # TODO: Test that this function works as intended.
