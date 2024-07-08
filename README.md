@@ -11,10 +11,10 @@ $ pip install -r requirements.txt # Install required packages
 ```
 Then run the main.py file
 ```bash
-sudo python main.py # Linux needs sudo privileges for sniffing
+$ sudo python main.py # Linux needs sudo privileges for sniffing
 ```
 For Windows:
 ```powershell
-python main.py
+PS C:\ python main.py
 ```
 Choose your network interface where scapy will listen from using the GUI and click the start button.
